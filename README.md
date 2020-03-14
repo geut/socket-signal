@@ -22,7 +22,7 @@ $ npm install socket-signal
 
 The client interface provides almost everything that you need to start a basic signal client (maybe you won't need to add more things).
 
-```
+```javascript
 const { SocketSignalClient } = require('socket-signal')
 
 class YourClient extends SocketSignalClient {}
