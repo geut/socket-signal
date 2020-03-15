@@ -25,7 +25,7 @@
     "isomorphic-ws": "^4.0.1",
     "nanocustomassert": "^1.0.0",
     "nanoerror": "^1.0.0",
-    "nanomessage-rpc": "^1.1.0",
+    "nanomessage-rpc": "^1.1.2",
     "nanoresource-promise": "^1.1.1",
     "p-event": "^4.1.0",
     "p-queue": "^6.3.0",
