@@ -5,7 +5,7 @@ const wrtc = require('wrtc')
 const once = require('events.once')
 
 const { SocketSignalClient, Peer } = require('..')
-const ServerTest = require('./server-test')
+const { SocketSignalServerMap } = require('..')
 
 const createSocket = () => {
   const t1 = through()
@@ -14,14 +14,15 @@ const createSocket = () => {
   return { from: duplexify(t1, t2), to: duplexify(t2, t1) }
 }
 
-const peerFactory = server => () => {
+const peerFactory = server => (opts = {}) => {
   const { from, to } = createSocket()
 
   const client = new SocketSignalClient(from, {
     timeout: 2 * 1000,
     simplePeer: {
       wrtc
-    }
+    },
+    ...opts
   })
 
   server.addSocket(to)
@@ -40,7 +41,7 @@ test('basic connection', async () => {
   expect.assertions((MAX_PEERS * 3) + 9)
 
   const topic = crypto.randomBytes(32)
-  const server = new ServerTest()
+  const server = new SocketSignalServerMap()
   const createPeer = peerFactory(server)
 
   const joinEvent = jest.fn()
@@ -99,10 +100,10 @@ test('basic connection', async () => {
 })
 
 test('rejects connection', async () => {
-  expect.assertions(9)
+  expect.assertions(10)
 
   const topic = crypto.randomBytes(32)
-  const server = new ServerTest()
+  const server = new SocketSignalServerMap()
   const createPeer = peerFactory(server)
 
   const peer1 = createPeer()
@@ -114,6 +115,7 @@ test('rejects connection', async () => {
     throw new Error('peer-rejected')
   })
 
+  await expect(peer1.connect(peer2.id, topic).waitForConnection()).rejects.toThrow('peer not found')
   await peer1.join(topic)
   await peer2.join(topic)
 
@@ -126,4 +128,30 @@ test('rejects connection', async () => {
   expect(peer1.peers.length).toBe(0)
   expect(peer2.peersConnecting.length).toBe(0)
   expect(peer2.peers.length).toBe(0)
+})
+
+test('metadata', async () => {
+  const topic = crypto.randomBytes(32)
+  const server = new SocketSignalServerMap()
+  const createPeer = peerFactory(server)
+
+  const peer1 = createPeer({ metadata: { user: 'peer1' } })
+  const peer2 = createPeer({ metadata: { user: 'peer2' } })
+
+  peer2.onIncomingPeer((peer) => {
+    peer.localMetadata = { password: '456' }
+  })
+
+  await peer1.join(topic)
+  await peer2.join(topic)
+
+  peer1.connect(peer2.id, topic, { password: '123' })
+
+  const [[remotePeer2], [remotePeer1]] = await Promise.all([
+    once(peer1, 'peer-connected'),
+    once(peer2, 'peer-connected')
+  ])
+
+  expect(remotePeer2.metadata).toEqual({ user: 'peer2', password: '456' })
+  expect(remotePeer1.metadata).toEqual({ user: 'peer1', password: '123' })
 })

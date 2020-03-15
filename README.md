@@ -6,7 +6,7 @@
 
 > Signal abstraction to create WebRTC connections through sockets.
 
-This module only provides a common interface (for the client and server) to build your own signal.
+This module provides a common interface (for the client and server) to build your own signal.
 
 If you want to use a `ready to use` implementation check: [socket-signal-websocket](https://github.com/geut/socket-signal-websocket).
 
@@ -20,7 +20,7 @@ $ npm install socket-signal
 
 ### Client
 
-The client interface provides almost everything that you need to start a basic signal client (maybe you won't need to add more things).
+The client interface provides almost everything that you need to start a basic signal client (most of the times you won't need to add more features).
 
 ```javascript
 const { SocketSignalClient } = require('socket-signal')
@@ -52,7 +52,8 @@ const client = new YourClient(socket)
 
 ### Server
 
-The server interface is minimal and you have to build your own abstraction on top it. Check: [server-test](/tests/server-test.js)
+If you want a server with a minimal implementation to handle peer connections you can use [SocketSignalServerMap](lib/server-map.js) or
+build your own abstraction on top the server interface `SocketSignalServer`.
 
 ## <a name="issues"></a> Issues
 
