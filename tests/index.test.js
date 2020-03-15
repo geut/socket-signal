@@ -38,7 +38,7 @@ const MAX_PEERS = 50
  */
 
 test('basic connection', async () => {
-  expect.assertions((MAX_PEERS * 3) + 9)
+  expect.assertions((MAX_PEERS * 3) + 11)
 
   const topic = crypto.randomBytes(32)
   const server = new SocketSignalServerMap()
@@ -70,9 +70,9 @@ test('basic connection', async () => {
   }
 
   expect(joinEvent).toHaveBeenCalledTimes(peers.length)
-  expect(joinEvent).toHaveBeenCalledWith(expect.any(Array), topic)
+  expect(joinEvent).toHaveBeenCalledWith(topic, expect.any(Array))
   expect(lookupEvent).toHaveBeenCalledTimes(peers.length)
-  expect(lookupEvent).toHaveBeenCalledWith(expect.any(Array), topic)
+  expect(lookupEvent).toHaveBeenCalledWith(topic, expect.any(Array))
 
   for (let i = 0; i < peers.length; i++) {
     if (peers[i + 1]) {
@@ -98,10 +98,13 @@ test('basic connection', async () => {
     await peer.close()
   }
 
+  expect(leaveEvent).toHaveBeenCalledTimes(peers.length)
+  expect(leaveEvent).toHaveBeenCalledWith(topic)
+
   await server.close()
 })
 
-test('rejects connection', async () => {
+test('rejects connection', async (done) => {
   expect.assertions(10)
 
   const topic = crypto.randomBytes(32)
@@ -111,7 +114,7 @@ test('rejects connection', async () => {
   const peer1 = createPeer()
   const peer2 = createPeer()
 
-  peer2.onIncomingPeer(() => {
+  peer2.onIncomingPeer((peer) => {
     expect(peer2.peersConnecting.length).toBe(1)
     expect(peer2.peers.length).toBe(0)
     throw new Error('peer-rejected')
@@ -133,7 +136,8 @@ test('rejects connection', async () => {
 
   await peer1.close()
   await peer2.close()
-  await server.close()
+
+  server.close().finally(done)
 })
 
 test('metadata', async () => {

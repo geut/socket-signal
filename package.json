@@ -12,7 +12,7 @@
   ],
   "scripts": {
     "start": "node index.js",
-    "test": "jest --verbose --passWithNoTests --forceExit",
+    "test": "jest --verbose --passWithNoTests --forceExit --detectOpenHandles",
     "posttest": "npm run lint",
     "lint": "xd-ns \"**/*.js\"",
     "version": "chan release --allow-yanked ${npm_package_version} && git add .",
