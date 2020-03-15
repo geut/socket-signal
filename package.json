@@ -58,6 +58,7 @@
     "url": "git+https://github.com/geut/socket-signal.git"
   },
   "keywords": [
+    "socket-signal",
     "webrtc",
     "signal",
     "signal-client",
