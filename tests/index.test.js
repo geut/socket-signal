@@ -97,6 +97,8 @@ test('basic connection', async () => {
     await peer.leave(topic)
     await peer.close()
   }
+
+  await server.close()
 })
 
 test('rejects connection', async () => {
@@ -128,6 +130,10 @@ test('rejects connection', async () => {
   expect(peer1.peers.length).toBe(0)
   expect(peer2.peersConnecting.length).toBe(0)
   expect(peer2.peers.length).toBe(0)
+
+  await peer1.close()
+  await peer2.close()
+  await server.close()
 })
 
 test('metadata', async () => {
@@ -154,4 +160,8 @@ test('metadata', async () => {
 
   expect(remotePeer2.metadata).toEqual({ user: 'peer2', password: '456' })
   expect(remotePeer1.metadata).toEqual({ user: 'peer1', password: '123' })
+
+  await peer1.close()
+  await peer2.close()
+  await server.close()
 })
