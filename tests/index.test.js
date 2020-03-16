@@ -169,3 +169,40 @@ test('metadata', async () => {
   await peer2.close()
   await server.close()
 })
+
+test('allow two connections of the same peer', async () => {
+  const topic = crypto.randomBytes(32)
+  const server = new SocketSignalServerMap()
+  const createPeer = peerFactory(server)
+
+  const peer1 = createPeer({ metadata: { user: 'peer1' } })
+  const peer2 = createPeer({ metadata: { user: 'peer2' } })
+
+  peer2.onIncomingPeer((peer) => {
+    peer.localMetadata = { password: '456' }
+  })
+
+  await peer1.join(topic)
+  await peer2.join(topic)
+
+  peer1.connect(peer2.id, topic, { password: '123' })
+  const second = peer1.connect(peer2.id, topic, { password: '123' })
+
+  const [[remotePeer2], [remotePeer1]] = await Promise.all([
+    once(peer1, 'peer-connected'),
+    once(peer2, 'peer-connected')
+  ])
+
+  await second.waitForConnection()
+  await once(peer2, 'peer-connected')
+
+  expect(peer1.peers.length).toBe(2)
+  expect(peer2.peers.length).toBe(2)
+
+  expect(remotePeer2.metadata).toEqual({ user: 'peer2', password: '456' })
+  expect(remotePeer1.metadata).toEqual({ user: 'peer1', password: '123' })
+
+  await peer1.close()
+  await peer2.close()
+  await server.close()
+})
