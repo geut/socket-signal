@@ -1,6 +1,6 @@
 {
   "name": "socket-signal",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Signal abstraction to create WebRTC connections through sockets.",
   "main": "index.js",
   "files": [
