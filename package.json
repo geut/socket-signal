@@ -21,7 +21,6 @@
   "dependencies": {
     "debug": "^4.1.1",
     "end-of-stream": "^1.4.4",
-    "events.once": "^2.0.2",
     "isomorphic-ws": "^4.0.1",
     "nanocustomassert": "^1.0.0",
     "nanoerror": "^1.0.0",

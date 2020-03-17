@@ -2,7 +2,7 @@ const crypto = require('crypto')
 const through = require('through2')
 const duplexify = require('duplexify')
 const wrtc = require('wrtc')
-const once = require('events.once')
+const pEvent = require('p-event')
 
 const { SocketSignalClient, Peer } = require('..')
 const { SocketSignalServerMap } = require('..')
@@ -78,7 +78,7 @@ test('basic connection', async () => {
     if (peers[i + 1]) {
       const remotePeer = peers[i].connect(peers[i + 1].id, topic)
       remotePeer.on('metadata-updated', peerMetadataEvent)
-      await once(peers[i + 1], 'peer-connected')
+      await pEvent(peers[i + 1], 'peer-connected')
       await remotePeer.waitForConnection()
     }
 
@@ -157,9 +157,9 @@ test('metadata', async () => {
 
   peer1.connect(peer2.id, topic, { password: '123' })
 
-  const [[remotePeer2], [remotePeer1]] = await Promise.all([
-    once(peer1, 'peer-connected'),
-    once(peer2, 'peer-connected')
+  const [remotePeer2, remotePeer1] = await Promise.all([
+    pEvent(peer1, 'peer-connected'),
+    pEvent(peer2, 'peer-connected')
   ])
 
   expect(remotePeer2.metadata).toEqual({ user: 'peer2', password: '456' })
@@ -188,13 +188,13 @@ test('allow two connections of the same peer', async () => {
   peer1.connect(peer2.id, topic, { password: '123' })
   const second = peer1.connect(peer2.id, topic, { password: '123' })
 
-  const [[remotePeer2], [remotePeer1]] = await Promise.all([
-    once(peer1, 'peer-connected'),
-    once(peer2, 'peer-connected')
+  const [remotePeer2, remotePeer1] = await Promise.all([
+    pEvent(peer1, 'peer-connected'),
+    pEvent(peer2, 'peer-connected')
   ])
 
   await second.waitForConnection()
-  await once(peer2, 'peer-connected')
+  await pEvent(peer2, 'peer-connected')
 
   expect(peer1.peers.length).toBe(2)
   expect(peer2.peers.length).toBe(2)
