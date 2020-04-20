@@ -19,10 +19,11 @@ const peerFactory = server => (opts = {}) => {
 
   const client = new SocketSignalClient(from, {
     timeout: 2 * 1000,
+    ...opts,
     simplePeer: {
-      wrtc
-    },
-    ...opts
+      wrtc,
+      ...opts.simplePeer
+    }
   })
 
   server.addSocket(to)
@@ -204,5 +205,59 @@ test('allow two connections of the same peer', async () => {
 
   await peer1.close()
   await peer2.close()
+  await server.close()
+})
+
+test('media stream', async () => {
+  async function getRemoteStream (peer) {
+    if (peer._remoteStreams.length > 0) {
+      return peer._remoteStreams[0]
+    }
+    return pEvent(peer, 'stream')
+  }
+
+  const topic = crypto.randomBytes(32)
+  const server = new SocketSignalServerMap()
+  const createPeer = peerFactory(server)
+
+  const stream1 = await wrtc.getUserMedia({ audio: true })
+
+  const signal1 = createPeer({
+    metadata: {
+      user: 'peer1'
+    },
+    simplePeer: {
+      streams: [stream1]
+    }
+  })
+  const signal2 = createPeer({ metadata: { user: 'peer2' } })
+
+  await signal1.join(topic)
+  await signal2.join(topic)
+
+  signal1.connect(signal2.id, topic, { password: '123' })
+
+  await Promise.all([
+    pEvent(signal1, 'peer-connected'),
+    pEvent(signal2, 'peer-connected')
+  ])
+
+  const peer1 = signal1.peers[0]
+  const peer2 = signal2.peers[0]
+
+  // data messages should be still working
+  peer1.send('ping')
+  expect((await pEvent(peer2, 'data')).toString()).toBe('ping')
+  peer1.send(Buffer.from('ping'))
+  expect((await pEvent(peer2, 'data')).toString()).toBe('ping')
+
+  const stream2 = await wrtc.getUserMedia({ audio: true })
+  peer2.addStream(stream2)
+
+  expect((await getRemoteStream(peer1)).id).toBe(stream2.id)
+  expect((await getRemoteStream(peer2)).id).toBe(stream1.id)
+
+  await signal1.close()
+  await signal2.close()
   await server.close()
 })
