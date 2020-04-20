@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## 2.0.0 - 2020-04-20 [YANKED]
+
 ## 1.0.12 - 2020-04-02 [YANKED]
 
 ## 1.0.11 - 2020-03-27 [YANKED]
@@ -31,4 +33,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## 1.0.1 - 2020-03-15 [YANKED]
 
 ## 1.0.0 - 2020-03-15 [YANKED]
-[Unreleased]: https://github.com/geut/socket-signal/compare/v1.0.12...HEAD
+[Unreleased]: https://github.com/geut/socket-signal/compare/v2.0.0...HEAD
