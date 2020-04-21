@@ -261,3 +261,36 @@ test('media stream', async () => {
   await signal2.close()
   await server.close()
 })
+
+test('extension data', async () => {
+  const topic = crypto.randomBytes(32)
+  const server = new SocketSignalServerMap()
+  const createPeer = peerFactory(server)
+
+  const signal1 = createPeer({ metadata: { user: 'peer1' } })
+  const signal2 = createPeer({ metadata: { user: 'peer2' } })
+
+  await signal1.join(topic)
+  await signal2.join(topic)
+
+  signal1.connect(signal2.id, topic, { password: '123' })
+
+  await Promise.all([
+    pEvent(signal1, 'peer-connected'),
+    pEvent(signal2, 'peer-connected')
+  ])
+
+  const peer1 = signal1.peers[0]
+  const peer2 = signal2.peers[0]
+
+  const onData = jest.fn()
+
+  peer1.sendExtensionData(Buffer.from('ping'))
+  peer2.on('data', onData)
+  expect((await pEvent(peer2, 'extension-data')).toString()).toBe('ping')
+  expect(onData).not.toHaveBeenCalled()
+
+  await signal1.close()
+  await signal2.close()
+  await server.close()
+})
