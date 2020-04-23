@@ -285,9 +285,9 @@ test('extension data', async () => {
 
   const onData = jest.fn()
 
-  peer1.sendExtensionData(Buffer.from('ping'))
+  peer1.sendExtensionData('custom', Buffer.from('ping'))
   peer2.on('data', onData)
-  expect((await pEvent(peer2, 'extension-data')).toString()).toBe('ping')
+  expect((await pEvent(peer2, 'extension-data')).value.toString()).toBe('ping')
   expect(onData).not.toHaveBeenCalled()
 
   await signal1.close()

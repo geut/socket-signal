@@ -12,6 +12,7 @@
   ],
   "scripts": {
     "start": "node index.js",
+    "build": "protocol-buffers lib/schema.proto -o lib/messages.js",
     "test": "jest --verbose --passWithNoTests --forceExit --detectOpenHandles",
     "posttest": "npm run lint",
     "lint": "xd-ns \"**/*.js\"",
@@ -28,14 +29,15 @@
     "nanoresource-promise": "^1.2.1",
     "p-event": "^4.1.0",
     "p-queue": "^6.3.0",
-    "simple-peer": "^9.6.2",
-    "varint": "^5.0.0"
+    "protocol-buffers-encodings": "^1.1.0",
+    "simple-peer": "^9.6.2"
   },
   "devDependencies": {
     "@geut/chan": "^2.0.0",
     "@geut/xd": "^1.5.0",
     "duplexify": "^4.1.1",
     "jest": "^25.1.0",
+    "protocol-buffers": "^4.1.2",
     "standard": "^14.3.1",
     "through2": "^3.0.1",
     "wrtc": "^0.4.4"
