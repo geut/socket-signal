@@ -223,19 +223,16 @@ test('media stream', async () => {
   const stream1 = await wrtc.getUserMedia({ audio: true })
 
   const signal1 = createPeer({
-    metadata: {
-      user: 'peer1'
-    },
     simplePeer: {
       streams: [stream1]
     }
   })
-  const signal2 = createPeer({ metadata: { user: 'peer2' } })
+  const signal2 = createPeer()
 
   await signal1.join(topic)
   await signal2.join(topic)
 
-  signal1.connect(signal2.id, topic, { password: '123' })
+  signal1.connect(signal2.id, topic)
 
   await Promise.all([
     pEvent(signal1, 'peer-connected'),
