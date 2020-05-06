@@ -58,7 +58,7 @@ test('basic connection', async () => {
     peer.on('leave', leaveEvent)
     peer.on('lookup', lookupEvent)
     peer.on('peer-connecting', peerConnectingEvent)
-    peer.on('peer', peerEvent)
+    peer.on('peer-queue', peerEvent)
     return peer
   })
 
@@ -245,50 +245,11 @@ test('media stream', async () => {
   const peer1 = signal1.peers[0]
   const peer2 = signal2.peers[0]
 
-  // data messages should be still working
-  peer1.send('ping')
-  expect((await pEvent(peer2, 'data')).toString()).toBe('ping')
-  peer1.send(Buffer.from('ping'))
-  expect((await pEvent(peer2, 'data')).toString()).toBe('ping')
-
   const stream2 = await wrtc.getUserMedia({ audio: true })
   peer2.addStream(stream2)
 
   expect((await getRemoteStream(peer1)).id).toBe(stream2.id)
   expect((await getRemoteStream(peer2)).id).toBe(stream1.id)
-
-  await signal1.close()
-  await signal2.close()
-  await server.close()
-})
-
-test('extension data', async () => {
-  const topic = crypto.randomBytes(32)
-  const server = new SocketSignalServerMap()
-  const createPeer = peerFactory(server)
-
-  const signal1 = createPeer({ metadata: { user: 'peer1' } })
-  const signal2 = createPeer({ metadata: { user: 'peer2' } })
-
-  await signal1.join(topic)
-  await signal2.join(topic)
-
-  signal1.connect(signal2.id, topic, { password: '123' })
-
-  await Promise.all([
-    pEvent(signal1, 'peer-connected'),
-    pEvent(signal2, 'peer-connected')
-  ])
-
-  const peer1 = signal1.peers[0]
-  const peer2 = signal2.peers[0]
-
-  const onData = jest.fn()
-
-  peer1.sendExtensionData('custom', Buffer.from('ping'))
-  peer2.on('data', onData)
-  expect((await pEvent(peer2, 'extension-data')).value.toString()).toBe('ping')
-  expect(onData).not.toHaveBeenCalled()
 
   await signal1.close()
   await signal2.close()
