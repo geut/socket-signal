@@ -7,6 +7,8 @@ const pEvent = require('p-event')
 const { SocketSignalClient, Peer } = require('..')
 const { SocketSignalServerMap } = require('..')
 
+jest.setTimeout(10 * 1000)
+
 const createSocket = () => {
   const t1 = through()
   const t2 = through()
@@ -31,14 +33,14 @@ const peerFactory = server => (opts = {}) => {
   return client
 }
 
-const MAX_PEERS = 50
-
 /**
  * node webrtc takes to long to close the connections
  * so we use --forceExit in our tests
  */
 
 test('basic connection', async () => {
+  const MAX_PEERS = 50
+
   expect.assertions((MAX_PEERS * 3) + 11)
 
   const topic = crypto.randomBytes(32)
