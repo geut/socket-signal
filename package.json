@@ -21,11 +21,10 @@
   "dependencies": {
     "debug": "^4.1.1",
     "end-of-stream": "^1.4.4",
-    "isomorphic-ws": "^4.0.1",
     "nanocustomassert": "^1.0.0",
     "nanoerror": "^1.0.0",
-    "nanomessage-rpc": "^1.2.1",
-    "nanoresource-promise": "^1.2.1",
+    "nanomessage-rpc": "^2.0.0",
+    "nanoresource-promise": "^2.0.0",
     "p-event": "^4.1.0",
     "p-queue": "^6.3.0",
     "simple-peer": "^9.6.2"
