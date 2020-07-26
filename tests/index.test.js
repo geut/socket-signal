@@ -143,7 +143,7 @@ test('rejects connection', async (done) => {
   server.close().finally(done)
 })
 
-test('metadata', async () => {
+test('metadata onIncomingPeer', async () => {
   const topic = crypto.randomBytes(32)
   const server = new SocketSignalServerMap()
   const createSignal = signalFactory(server)
@@ -158,7 +158,7 @@ test('metadata', async () => {
   await signal1.join(topic)
   await signal2.join(topic)
 
-  signal1.connect(signal2.id, topic, { password: '123' })
+  signal1.connect(signal2.id, topic, { metadata: { password: '123' } })
 
   const [remotePeer2, remotePeer1] = await Promise.all([
     pEvent(signal1, 'peer-connected'),
@@ -173,7 +173,9 @@ test('metadata', async () => {
   await server.close()
 })
 
-test('allow two connections of the same peer', async () => {
+test('metadata onOffer', async () => {
+  expect.assertions(4)
+
   const topic = crypto.randomBytes(32)
   const server = new SocketSignalServerMap()
   const createSignal = signalFactory(server)
@@ -181,17 +183,78 @@ test('allow two connections of the same peer', async () => {
   const signal1 = createSignal({ metadata: { user: 'peer1' } })
   const signal2 = createSignal({ metadata: { user: 'peer2' } })
 
-  signal2.onIncomingPeer((peer) => {
-    peer.localMetadata = { password: '456' }
+  signal2.onOffer((data) => {
+    expect(data.offer).toBeDefined()
+    expect(data.metadata).toEqual({ user: 'peer1', password: '123' })
+
+    return {
+      metadata: { password: '456' }
+    }
   })
 
   await signal1.join(topic)
   await signal2.join(topic)
 
-  signal1.connect(signal2.id, topic, { password: '123' })
-  const second = signal1.connect(signal2.id, topic, { password: '123' })
+  signal1.connect(signal2.id, topic, { metadata: { password: '123' } })
 
   const [remotePeer2, remotePeer1] = await Promise.all([
+    pEvent(signal1, 'peer-connected'),
+    pEvent(signal2, 'peer-connected')
+  ])
+
+  expect(remotePeer2.metadata).toEqual({ user: 'peer2', password: '456' })
+  expect(remotePeer1.metadata).toEqual({ user: 'peer1', password: '123' })
+
+  await signal1.close()
+  await signal2.close()
+  await server.close()
+})
+
+test('onAnswer', async () => {
+  expect.assertions(2)
+
+  const topic = crypto.randomBytes(32)
+  const server = new SocketSignalServerMap()
+  const createSignal = signalFactory(server)
+
+  const signal1 = createSignal({ metadata: { user: 'peer1' } })
+  const signal2 = createSignal({ metadata: { user: 'peer2' } })
+
+  signal1.onAnswer((data) => {
+    expect(data.answer).toBeDefined()
+    expect(data.metadata).toEqual({ user: 'peer2' })
+  })
+
+  await signal1.join(topic)
+  await signal2.join(topic)
+
+  signal1.connect(signal2.id, topic)
+
+  await Promise.all([
+    pEvent(signal1, 'peer-connected'),
+    pEvent(signal2, 'peer-connected')
+  ])
+
+  await signal1.close()
+  await signal2.close()
+  await server.close()
+})
+
+test('allow two connections of the same peer', async () => {
+  const topic = crypto.randomBytes(32)
+  const server = new SocketSignalServerMap()
+  const createSignal = signalFactory(server)
+
+  const signal1 = createSignal()
+  const signal2 = createSignal()
+
+  await signal1.join(topic)
+  await signal2.join(topic)
+
+  signal1.connect(signal2.id, topic)
+  const second = signal1.connect(signal2.id, topic)
+
+  await Promise.all([
     pEvent(signal1, 'peer-connected'),
     pEvent(signal2, 'peer-connected')
   ])
@@ -201,9 +264,6 @@ test('allow two connections of the same peer', async () => {
 
   expect(signal1.peers.length).toBe(2)
   expect(signal2.peers.length).toBe(2)
-
-  expect(remotePeer2.metadata).toEqual({ user: 'peer2', password: '456' })
-  expect(remotePeer1.metadata).toEqual({ user: 'peer1', password: '123' })
 
   await signal1.close()
   await signal2.close()
