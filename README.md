@@ -132,7 +132,7 @@ Options include:
 - `metadata: Object`: Metadata to share across network.
 - `simplePeer: Object`: SimplePeer options.
 
-> IMPORTANT: Every `id` and `topic` in this module must be a `Buffer of 32 bytes`.
+> IMPORTANT: Every `id` and `topic` must be a `Buffer of 32 bytes`.
 
 #### `client.open() => Promise`
 
