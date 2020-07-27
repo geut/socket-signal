@@ -41,7 +41,7 @@ const signalFactory = server => (opts = {}) => {
 test('basic connection', async () => {
   const MAX_SIGNALS = 50
 
-  expect.assertions((MAX_SIGNALS * 3) + 11)
+  expect.assertions((MAX_SIGNALS * 3) + 13)
 
   const topic = crypto.randomBytes(32)
   const server = new SocketSignalServerMap()
@@ -71,6 +71,8 @@ test('basic connection', async () => {
     await expect(signal.lookup(topic)).resolves.toEqual(lookupResult)
     i++
   }
+
+  expect(server.connections.size).toBe(MAX_SIGNALS)
 
   expect(joinEvent).toHaveBeenCalledTimes(signals.length)
   expect(joinEvent).toHaveBeenCalledWith(topic, expect.any(Array))
@@ -103,6 +105,8 @@ test('basic connection', async () => {
 
   expect(leaveEvent).toHaveBeenCalledTimes(signals.length)
   expect(leaveEvent).toHaveBeenCalledWith(topic)
+
+  expect(server.connections.size).toBe(0)
 
   await server.close()
 })
