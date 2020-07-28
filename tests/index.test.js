@@ -84,7 +84,7 @@ test('basic connection', async () => {
       const remoteSignal = signals[i].connect(signals[i + 1].id, topic)
       remoteSignal.on('metadata-updated', peerMetadataEvent)
       await pEvent(signals[i + 1], 'peer-connected')
-      await remoteSignal.waitForConnection()
+      await remoteSignal.ready()
     }
 
     // first and last peer with one connection
@@ -127,14 +127,14 @@ test('rejects connection', async (done) => {
     throw new Error('peer-rejected')
   })
 
-  await expect(signal1.connect(signal2.id, topic).waitForConnection()).rejects.toThrow('peer not found')
+  await expect(signal1.connect(signal2.id, topic).ready()).rejects.toThrow('peer not found')
   await signal1.join(topic)
   await signal2.join(topic)
 
   const remotePeer = signal1.connect(signal2.id, topic)
   expect(signal1.peersConnecting.length).toBe(1)
   expect(signal1.peers.length).toBe(0)
-  await expect(remotePeer.waitForConnection()).rejects.toThrow('peer-rejected')
+  await expect(remotePeer.ready()).rejects.toThrow('peer-rejected')
 
   expect(signal1.peersConnecting.length).toBe(0)
   expect(signal1.peers.length).toBe(0)
@@ -263,7 +263,7 @@ test('allow two connections of the same peer', async () => {
     pEvent(signal2, 'peer-connected')
   ])
 
-  await second.waitForConnection()
+  await second.ready()
   await pEvent(signal2, 'peer-connected')
 
   expect(signal1.peers.length).toBe(2)

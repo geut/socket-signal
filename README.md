@@ -65,7 +65,7 @@ const client = new YourClient(socket, opts)
 
   try {
     // wait until the connection is established
-    await remotePeer.waitForConnection()
+    await remotePeer.ready()
     // SimplePeer connected
   } catch(err) {
     // SimplePeer rejected
@@ -173,7 +173,7 @@ Creates a `request` connection for a specific peer and topic.
 - `localMetadata: Object`: Your metadata shared with the peer.
 - `metadata: Object`: The remote metadata, belongs to the peer connected to.
 
-#### `peer.waitForConnection() => Promise`
+#### `peer.ready() => Promise`
 
 Wait for the connection to be established.
 
