@@ -39,7 +39,7 @@ const signalFactory = server => (opts = {}) => {
  */
 
 test('basic connection', async () => {
-  const MAX_SIGNALS = 2
+  const MAX_SIGNALS = 50
 
   expect.assertions((MAX_SIGNALS * 3) + 13)
 
@@ -147,7 +147,7 @@ test('rejects connection', async (done) => {
   server.close().finally(done)
 })
 
-test('metadata onIncomingPeer', async () => {
+test.skip('metadata onIncomingPeer', async () => {
   const topic = crypto.randomBytes(32)
   const server = new SocketSignalServerMap()
   const createSignal = signalFactory(server)
@@ -177,7 +177,7 @@ test('metadata onIncomingPeer', async () => {
   await server.close()
 })
 
-test('metadata onOffer', async () => {
+test.skip('metadata onOffer', async () => {
   expect.assertions(4)
 
   const topic = crypto.randomBytes(32)
@@ -214,7 +214,7 @@ test('metadata onOffer', async () => {
   await server.close()
 })
 
-test('onAnswer', async () => {
+test.skip('onAnswer', async () => {
   expect.assertions(2)
 
   const topic = crypto.randomBytes(32)
@@ -244,7 +244,7 @@ test('onAnswer', async () => {
   await server.close()
 })
 
-test('allow two connections of the same peer', async () => {
+test.skip('allow two connections of the same peer', async () => {
   const topic = crypto.randomBytes(32)
   const server = new SocketSignalServerMap()
   const createSignal = signalFactory(server)
@@ -274,7 +274,7 @@ test('allow two connections of the same peer', async () => {
   await server.close()
 })
 
-test('media stream', async () => {
+test.skip('media stream', async () => {
   async function getRemoteStream (peer) {
     if (peer._remoteStreams.length > 0) {
       return peer._remoteStreams[0]
