@@ -7,7 +7,7 @@ const pEvent = require('p-event')
 const { SocketSignalClient, Peer } = require('..')
 const { SocketSignalServerMap } = require('..')
 
-jest.setTimeout(10 * 1000)
+jest.setTimeout(30 * 1000)
 
 const createSocket = () => {
   const t1 = through()
@@ -83,8 +83,9 @@ test('basic connection', async () => {
     if (signals[i + 1]) {
       const remoteSignal = signals[i].connect(signals[i + 1].id, topic)
       remoteSignal.on('metadata-updated', peerMetadataEvent)
-      await pEvent(signals[i + 1], 'peer-connected')
+      const p = pEvent(signals[i + 1], 'peer-connected')
       await remoteSignal.ready()
+      await p
     }
 
     // first and last peer with one connection
@@ -147,7 +148,7 @@ test('rejects connection', async (done) => {
   server.close().finally(done)
 })
 
-test.skip('metadata onIncomingPeer', async () => {
+test('metadata onIncomingPeer', async () => {
   const topic = crypto.randomBytes(32)
   const server = new SocketSignalServerMap()
   const createSignal = signalFactory(server)
