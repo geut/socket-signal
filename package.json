@@ -21,7 +21,6 @@
   "dependencies": {
     "debug": "^4.1.1",
     "end-of-stream": "^1.4.4",
-    "lodash.debounce": "^4.0.8",
     "nanocustomassert": "^1.0.0",
     "nanoerror": "^1.0.0",
     "nanomessage-rpc": "^3.0.0",

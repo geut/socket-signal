@@ -39,7 +39,7 @@ const signalFactory = server => (opts = {}) => {
  */
 
 test('basic connection', async () => {
-  const MAX_SIGNALS = 50
+  const MAX_SIGNALS = 10
 
   expect.assertions((MAX_SIGNALS * 3) + 13)
 
