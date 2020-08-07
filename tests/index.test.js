@@ -320,7 +320,7 @@ test('media stream', async () => {
 
   const stream2 = await wrtc.getUserMedia({ audio: true })
   peer2.addStream(stream2)
-  console.log('llega')
+
   expect((await getRemoteStream(peer1)).id).toBe(stream2.id)
   expect((await getRemoteStream(peer2)).id).toBe(stream1.id)
 
