@@ -66,6 +66,7 @@ const client = new YourClient(socket, opts)
   try {
     // wait until the connection is established
     await remotePeer.ready()
+    console.log(remotePeer.stream)
     // SimplePeer connected
   } catch(err) {
     // SimplePeer rejected
@@ -83,23 +84,23 @@ class YourServer extends SocketSignalServer {
     // onDisconnect a peer socket
   }
 
-  async _onJoin (rpc, data) {
-    // data.id, data.topic
+  async _onJoin (rpc, msg) {
+    // msg.id, msg.topic
   }
 
-  async _onLeave (rpc, data) {
-    // data.id, data.topic
+  async _onLeave (rpc, msg) {
+    // msg.id, msg.topic
   }
 
-  async _onLookup (rpc, data) {
-    // data.topic
+  async _onLookup (rpc, msg) {
+    // msg.topic
   }
 
   /**
    * request signal offer
    */
-  async _onOffer (rpc, data) {
-    // data.remoteId, data.topic
+  async _onOffer (rpc, msg) {
+    // msg.remoteId, msg.topic, msg.data
   }
 
   /**
@@ -107,8 +108,8 @@ class YourServer extends SocketSignalServer {
    *
    * this event is emitted when there is a signal candidate
    */
-  async _onSignal (rpc, data) {
-    // data.remoteId, data.topic, data.candidates
+  async _onSignal (rpc, msg) {
+    // msg.remoteId, msg.topic, msg.data
   }
 }
 ```
@@ -172,16 +173,21 @@ Creates a `request` connection for a specific peer and topic.
 - `topic: Buffer`: Topic related.
 - `localMetadata: Object`: Your metadata shared with the peer.
 - `metadata: Object`: The remote metadata, belongs to the peer connected to.
+- `stream: SimplePeer`: The SimplePeer internal stream.
 
 #### `peer.ready() => Promise`
 
 Wait for the connection to be established.
 
-#### `peer.subscribeMediaStream()`
+#### `peer.addStream(mediaStream) => Peer`
+
+Add a media stream.
+
+#### `peer.subscribeMediaStream() => Peer`
 
 Listen for media streams and use the signal to share it.
 
-#### `peer.unsubscribeMediaStream()`
+#### `peer.unsubscribeMediaStream() => Peer`
 
 Stop listen for media streams.
 
