@@ -166,7 +166,7 @@ Creates a `request` connection for a specific peer and topic.
 - `metadata: Object`: Metadata to share with the other peer.
 - `simplePeer: Object`: Specific SimplePeer options for this connection.
 
-`Peer` is an object that extends from `SimplePeer` with:
+`Peer` is an object with:
 
 - `id: Buffer`: ID of the peer.
 - `sessionId: Buffer`: Unique ID for this connection.
@@ -174,6 +174,7 @@ Creates a `request` connection for a specific peer and topic.
 - `localMetadata: Object`: Your metadata shared with the peer.
 - `metadata: Object`: The remote metadata, belongs to the peer connected to.
 - `stream: SimplePeer`: The SimplePeer internal stream.
+- `subscribeMediaStream: boolean`: Set in `true` if you want to use the signal to listen for incoming media streams. Default: `false`.
 
 #### `peer.ready() => Promise`
 
@@ -182,14 +183,6 @@ Wait for the connection to be established.
 #### `peer.addStream(mediaStream) => Peer`
 
 Add a media stream.
-
-#### `peer.subscribeMediaStream() => Peer`
-
-Listen for media streams and use the signal to share it.
-
-#### `peer.unsubscribeMediaStream() => Peer`
-
-Stop listen for media streams.
 
 ## <a name="issues"></a> Issues
 

@@ -295,12 +295,12 @@ test('media stream', async () => {
     }
   })
     .onIncomingPeer(peer => {
-      peer.subscribeMediaStream()
+      peer.subscribeMediaStream = true
     })
 
   const signal2 = createSignal()
     .onIncomingPeer(peer => {
-      peer.subscribeMediaStream()
+      peer.subscribeMediaStream = true
     })
 
   await signal1.join(topic)
@@ -308,7 +308,7 @@ test('media stream', async () => {
 
   signal1
     .connect(signal2.id, topic)
-    .subscribeMediaStream()
+    .subscribeMediaStream = true
 
   await Promise.all([
     pEvent(signal1, 'peer-connecting'),
