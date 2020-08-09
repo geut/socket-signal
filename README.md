@@ -127,9 +127,8 @@ Creates a new client instance.
 Options include:
 
 - `id: Buffer`: ID of 32 bytes.
-- `requestTimeout: 5 * 1000`: How long to wait for peer requests.
-- `queueTimeout: 10 * 1000`: How long to wait for a job queue incoming connection.
-- `queueConcurrency: Infinity`: How many incoming connections in concurrent can handle
+- `requestTimeout: 10 * 1000`: How long to wait for peer requests.
+- `queueConcurrency: 4`: How many incoming connections in concurrent can handle
 - `metadata: Object`: Metadata to share across network.
 - `simplePeer: Object`: SimplePeer options.
 

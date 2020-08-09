@@ -39,7 +39,7 @@ const signalFactory = server => (opts = {}) => {
  */
 
 test('basic connection', async () => {
-  const MAX_SIGNALS = 2
+  const MAX_SIGNALS = 50
 
   expect.assertions((MAX_SIGNALS * 3) + 13)
 
@@ -79,15 +79,22 @@ test('basic connection', async () => {
   expect(lookupEvent).toHaveBeenCalledTimes(signals.length)
   expect(lookupEvent).toHaveBeenCalledWith(topic, expect.any(Array))
 
+  const waitForConnections = []
   for (let i = 0; i < signals.length; i++) {
-    if (signals[i + 1]) {
-      const remoteSignal = signals[i].connect(signals[i + 1].id, topic)
-      remoteSignal.on('metadata-updated', peerMetadataEvent)
-      const p = pEvent(signals[i + 1], 'peer-connected')
-      await remoteSignal.ready()
-      await p
+    if (!signals[i + 1]) {
+      waitForConnections.push(pEvent(signals[i], 'peer-connected'))
+      continue
     }
 
+    const remoteSignal = signals[i].connect(signals[i + 1].id, topic)
+    remoteSignal.on('metadata-updated', peerMetadataEvent)
+    waitForConnections.push(pEvent(signals[i + 1], 'peer-connected'))
+    waitForConnections.push(remoteSignal.ready())
+  }
+
+  await Promise.all(waitForConnections)
+
+  for (let i = 0; i < signals.length; i++) {
     // first and last peer with one connection
     const connections = (i === 0 || i === (signals.length - 1)) ? 1 : 2
     expect(signals[i].peersConnected.length).toBe(connections)
