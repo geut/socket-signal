@@ -127,7 +127,7 @@ Creates a new client instance.
 Options include:
 
 - `id: Buffer`: ID of 32 bytes.
-- `requestTimeout: 10 * 1000`: How long to wait for peer requests.
+- `requestTimeout: 15 * 1000`: How long to wait for peer requests.
 - `queueConcurrency: 4`: How many incoming connections in concurrent can handle
 - `metadata: Object`: Metadata to share across network.
 - `simplePeer: Object`: SimplePeer options.
