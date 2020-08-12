@@ -7,7 +7,7 @@ const pEvent = require('p-event')
 const { SocketSignalClient, Peer } = require('..')
 const { SocketSignalServerMap } = require('..')
 
-jest.setTimeout(10 * 1000)
+jest.setTimeout(30 * 1000)
 
 const createSocket = () => {
   const t1 = through()
@@ -39,7 +39,7 @@ const signalFactory = server => (opts = {}) => {
  */
 
 test('basic connection', async () => {
-  const MAX_SIGNALS = 50
+  const MAX_SIGNALS = 10
 
   expect.assertions((MAX_SIGNALS * 3) + 13)
 
@@ -79,17 +79,25 @@ test('basic connection', async () => {
   expect(lookupEvent).toHaveBeenCalledTimes(signals.length)
   expect(lookupEvent).toHaveBeenCalledWith(topic, expect.any(Array))
 
+  const waitForConnections = []
   for (let i = 0; i < signals.length; i++) {
-    if (signals[i + 1]) {
-      const remoteSignal = signals[i].connect(signals[i + 1].id, topic)
-      remoteSignal.on('metadata-updated', peerMetadataEvent)
-      await pEvent(signals[i + 1], 'peer-connected')
-      await remoteSignal.ready()
+    if (!signals[i + 1]) {
+      waitForConnections.push(pEvent(signals[i], 'peer-connected'))
+      continue
     }
 
+    const remoteSignal = signals[i].connect(signals[i + 1].id, topic)
+    remoteSignal.on('metadata-updated', peerMetadataEvent)
+    waitForConnections.push(pEvent(signals[i + 1], 'peer-connected'))
+    waitForConnections.push(remoteSignal.ready())
+  }
+
+  await Promise.all(waitForConnections)
+
+  for (let i = 0; i < signals.length; i++) {
     // first and last peer with one connection
     const connections = (i === 0 || i === (signals.length - 1)) ? 1 : 2
-    expect(signals[i].peers.length).toBe(connections)
+    expect(signals[i].peersConnected.length).toBe(connections)
   }
 
   expect(peerMetadataEvent).toHaveBeenCalledTimes(signals.length - 1)
@@ -123,7 +131,7 @@ test('rejects connection', async (done) => {
 
   signal2.onIncomingPeer((peer) => {
     expect(signal2.peersConnecting.length).toBe(1)
-    expect(signal2.peers.length).toBe(0)
+    expect(signal2.peersConnected.length).toBe(0)
     throw new Error('peer-rejected')
   })
 
@@ -133,13 +141,13 @@ test('rejects connection', async (done) => {
 
   const remotePeer = signal1.connect(signal2.id, topic)
   expect(signal1.peersConnecting.length).toBe(1)
-  expect(signal1.peers.length).toBe(0)
+  expect(signal1.peersConnected.length).toBe(0)
   await expect(remotePeer.ready()).rejects.toThrow('peer-rejected')
 
   expect(signal1.peersConnecting.length).toBe(0)
-  expect(signal1.peers.length).toBe(0)
+  expect(signal1.peersConnected.length).toBe(0)
   expect(signal2.peersConnecting.length).toBe(0)
-  expect(signal2.peers.length).toBe(0)
+  expect(signal2.peersConnected.length).toBe(0)
 
   await signal1.close()
   await signal2.close()
@@ -187,9 +195,9 @@ test('metadata onOffer', async () => {
   const signal1 = createSignal({ metadata: { user: 'peer1' } })
   const signal2 = createSignal({ metadata: { user: 'peer2' } })
 
-  signal2.onOffer((data) => {
-    expect(data.offer).toBeDefined()
-    expect(data.metadata).toEqual({ user: 'peer1', password: '123' })
+  signal2.onOffer((message) => {
+    expect(message.data).toBeDefined()
+    expect(message.metadata).toEqual({ user: 'peer1', password: '123' })
 
     return {
       metadata: { password: '456' }
@@ -224,9 +232,9 @@ test('onAnswer', async () => {
   const signal1 = createSignal({ metadata: { user: 'peer1' } })
   const signal2 = createSignal({ metadata: { user: 'peer2' } })
 
-  signal1.onAnswer((data) => {
-    expect(data.answer).toBeDefined()
-    expect(data.metadata).toEqual({ user: 'peer2' })
+  signal1.onAnswer((message) => {
+    expect(message.data).toBeDefined()
+    expect(message.metadata).toEqual({ user: 'peer2' })
   })
 
   await signal1.join(topic)
@@ -266,8 +274,8 @@ test('allow two connections of the same peer', async () => {
   await second.ready()
   await pEvent(signal2, 'peer-connected')
 
-  expect(signal1.peers.length).toBe(2)
-  expect(signal2.peers.length).toBe(2)
+  expect(signal1.peersConnected.length).toBe(2)
+  expect(signal2.peersConnected.length).toBe(2)
 
   await signal1.close()
   await signal2.close()
@@ -276,8 +284,8 @@ test('allow two connections of the same peer', async () => {
 
 test('media stream', async () => {
   async function getRemoteStream (peer) {
-    if (peer._remoteStreams.length > 0) {
-      return peer._remoteStreams[0]
+    if (peer.stream._remoteStreams.length > 0) {
+      return peer.stream._remoteStreams[0]
     }
     return pEvent(peer, 'stream')
   }
@@ -294,12 +302,12 @@ test('media stream', async () => {
     }
   })
     .onIncomingPeer(peer => {
-      peer.subscribeMediaStream()
+      peer.subscribeMediaStream = true
     })
 
   const signal2 = createSignal()
     .onIncomingPeer(peer => {
-      peer.subscribeMediaStream()
+      peer.subscribeMediaStream = true
     })
 
   await signal1.join(topic)
@@ -307,11 +315,11 @@ test('media stream', async () => {
 
   signal1
     .connect(signal2.id, topic)
-    .subscribeMediaStream()
+    .subscribeMediaStream = true
 
   await Promise.all([
-    pEvent(signal1, 'peer-connected'),
-    pEvent(signal2, 'peer-connected')
+    pEvent(signal1, 'peer-connecting'),
+    pEvent(signal2, 'peer-connecting')
   ])
 
   const peer1 = signal1.peers[0]

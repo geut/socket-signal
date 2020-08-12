@@ -3,6 +3,6 @@ module.exports = {
   SocketSignalServer: require('./lib/server'),
   SocketSignalServerMap: require('./lib/server-map'),
   Peer: require('./lib/peer'),
-  CacheSignal: require('./lib/cache-signal'),
+  SignalBatch: require('./lib/signal-batch'),
   errors: require('./lib/errors')
 }

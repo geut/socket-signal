@@ -66,6 +66,7 @@ const client = new YourClient(socket, opts)
   try {
     // wait until the connection is established
     await remotePeer.ready()
+    console.log(remotePeer.stream)
     // SimplePeer connected
   } catch(err) {
     // SimplePeer rejected
@@ -83,23 +84,23 @@ class YourServer extends SocketSignalServer {
     // onDisconnect a peer socket
   }
 
-  async _onJoin (rpc, data) {
-    // data.id, data.topic
+  async _onJoin (rpc, msg) {
+    // msg.id, msg.topic
   }
 
-  async _onLeave (rpc, data) {
-    // data.id, data.topic
+  async _onLeave (rpc, msg) {
+    // msg.id, msg.topic
   }
 
-  async _onLookup (rpc, data) {
-    // data.topic
+  async _onLookup (rpc, msg) {
+    // msg.topic
   }
 
   /**
    * request signal offer
    */
-  async _onOffer (rpc, data) {
-    // data.remoteId, data.topic
+  async _onOffer (rpc, msg) {
+    // msg.remoteId, msg.topic, msg.data
   }
 
   /**
@@ -107,8 +108,8 @@ class YourServer extends SocketSignalServer {
    *
    * this event is emitted when there is a signal candidate
    */
-  async _onSignal (rpc, data) {
-    // data.remoteId, data.topic, data.candidates
+  async _onSignal (rpc, msg) {
+    // msg.remoteId, msg.topic, msg.data
   }
 }
 ```
@@ -126,9 +127,8 @@ Creates a new client instance.
 Options include:
 
 - `id: Buffer`: ID of 32 bytes.
-- `requestTimeout: 5 * 1000`: How long to wait for peer requests.
-- `queueTimeout: 10 * 1000`: How long to wait for a job queue incoming connection.
-- `queueConcurrency: Infinity`: How many incoming connections in concurrent can handle
+- `requestTimeout: 15 * 1000`: How long to wait for peer requests.
+- `queueConcurrency: 4`: How many incoming connections in concurrent can handle
 - `metadata: Object`: Metadata to share across network.
 - `simplePeer: Object`: SimplePeer options.
 
@@ -165,25 +165,23 @@ Creates a `request` connection for a specific peer and topic.
 - `metadata: Object`: Metadata to share with the other peer.
 - `simplePeer: Object`: Specific SimplePeer options for this connection.
 
-`Peer` is an object that extends from `SimplePeer` with:
+`Peer` is an object with:
 
 - `id: Buffer`: ID of the peer.
 - `sessionId: Buffer`: Unique ID for this connection.
 - `topic: Buffer`: Topic related.
 - `localMetadata: Object`: Your metadata shared with the peer.
 - `metadata: Object`: The remote metadata, belongs to the peer connected to.
+- `stream: SimplePeer`: The SimplePeer internal stream.
+- `subscribeMediaStream: boolean`: Set in `true` if you want to use the signal to listen for incoming media streams. Default: `false`.
 
 #### `peer.ready() => Promise`
 
 Wait for the connection to be established.
 
-#### `peer.subscribeMediaStream()`
+#### `peer.addStream(mediaStream) => Peer`
 
-Listen for media streams and use the signal to share it.
-
-#### `peer.unsubscribeMediaStream()`
-
-Stop listen for media streams.
+Add a media stream.
 
 ## <a name="issues"></a> Issues
 
