@@ -61,7 +61,7 @@ const client = new YourClient(socket, opts)
   const remotePeer = client.connect(peersAvailable[0], topic)
 
   // optional, use the signal to listen for incoming media streams
-  remotePeer.subscribeMediaStream()
+  remotePeer.subscribeMediaStream = true
 
   try {
     // wait until the connection is established
