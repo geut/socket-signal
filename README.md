@@ -156,9 +156,9 @@ Leave the swarm for the given topic.
 
 Close all the connections referenced by a topic.
 
-#### `client.connect(peerId: Buffer, topic: Buffer, options: Object) => Peer`
+#### `client.connect(peerId: Buffer, topic?: Buffer, options?: Object) => Peer`
 
-Creates a `request` connection for a specific peer and topic.
+Creates a `request` connection for a specific peer and topic. `topic` is optional.
 
 `options` include:
 

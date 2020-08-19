@@ -335,3 +335,25 @@ test('media stream', async () => {
   await signal2.close()
   await server.close()
 })
+
+test('connect with topic in null', async () => {
+  const topic = crypto.randomBytes(32)
+  const server = new SocketSignalServerMap()
+  const createSignal = signalFactory(server)
+
+  const signal1 = createSignal({ metadata: { user: 'peer1' } })
+  const signal2 = createSignal({ metadata: { user: 'peer2' } })
+
+  await signal2.join(topic)
+
+  signal1.connect(signal2.id, null)
+
+  await Promise.all([
+    pEvent(signal1, 'peer-connected'),
+    pEvent(signal2, 'peer-connected')
+  ])
+
+  await signal1.close()
+  await signal2.close()
+  await server.close()
+})
