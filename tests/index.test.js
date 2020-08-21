@@ -86,7 +86,7 @@ test('basic connection', async () => {
       continue
     }
 
-    const remoteSignal = signals[i].connect(signals[i + 1].id, topic)
+    const remoteSignal = signals[i].connect(topic, signals[i + 1].id)
     remoteSignal.on('metadata-updated', peerMetadataEvent)
     waitForConnections.push(pEvent(signals[i + 1], 'peer-connected'))
     waitForConnections.push(remoteSignal.ready())
@@ -135,11 +135,11 @@ test('rejects connection', async (done) => {
     throw new Error('peer-rejected')
   })
 
-  await expect(signal1.connect(signal2.id, topic).ready()).rejects.toThrow('peer not found')
+  await expect(signal1.connect(topic, signal2.id).ready()).rejects.toThrow('peer not found')
   await signal1.join(topic)
   await signal2.join(topic)
 
-  const remotePeer = signal1.connect(signal2.id, topic)
+  const remotePeer = signal1.connect(topic, signal2.id)
   expect(signal1.peersConnecting.length).toBe(1)
   expect(signal1.peersConnected.length).toBe(0)
   await expect(remotePeer.ready()).rejects.toThrow('peer-rejected')
@@ -170,7 +170,7 @@ test('metadata onIncomingPeer', async () => {
   await signal1.join(topic)
   await signal2.join(topic)
 
-  signal1.connect(signal2.id, topic, { metadata: { password: '123' } })
+  signal1.connect(topic, signal2.id, { metadata: { password: '123' } })
 
   const [remotePeer2, remotePeer1] = await Promise.all([
     pEvent(signal1, 'peer-connected'),
@@ -207,7 +207,7 @@ test('metadata onOffer', async () => {
   await signal1.join(topic)
   await signal2.join(topic)
 
-  signal1.connect(signal2.id, topic, { metadata: { password: '123' } })
+  signal1.connect(topic, signal2.id, { metadata: { password: '123' } })
 
   const [remotePeer2, remotePeer1] = await Promise.all([
     pEvent(signal1, 'peer-connected'),
@@ -240,7 +240,7 @@ test('onAnswer', async () => {
   await signal1.join(topic)
   await signal2.join(topic)
 
-  signal1.connect(signal2.id, topic)
+  signal1.connect(topic, signal2.id)
 
   await Promise.all([
     pEvent(signal1, 'peer-connected'),
@@ -263,8 +263,8 @@ test('allow two connections of the same peer', async () => {
   await signal1.join(topic)
   await signal2.join(topic)
 
-  signal1.connect(signal2.id, topic)
-  const second = signal1.connect(signal2.id, topic)
+  signal1.connect(topic, signal2.id)
+  const second = signal1.connect(topic, signal2.id)
 
   await Promise.all([
     pEvent(signal1, 'peer-connected'),
@@ -314,7 +314,7 @@ test('media stream', async () => {
   await signal2.join(topic)
 
   signal1
-    .connect(signal2.id, topic)
+    .connect(topic, signal2.id)
     .subscribeMediaStream = true
 
   await Promise.all([
@@ -346,7 +346,7 @@ test('connect with topic in null', async () => {
 
   await signal2.join(topic)
 
-  signal1.connect(signal2.id, null)
+  signal1.connect(topic, signal2.id)
 
   await Promise.all([
     pEvent(signal1, 'peer-connected'),

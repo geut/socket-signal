@@ -58,7 +58,7 @@ const client = new YourClient(socket, opts)
   const peersAvailable = await client.join(topic)
 
   // request a connection to a specific peer
-  const remotePeer = client.connect(peersAvailable[0], topic)
+  const remotePeer = client.connect(topic, peersAvailable[0])
 
   // optional, use the signal to listen for incoming media streams
   remotePeer.subscribeMediaStream = true
@@ -156,9 +156,9 @@ Leave the swarm for the given topic.
 
 Close all the connections referenced by a topic.
 
-#### `client.connect(peerId: Buffer, topic?: Buffer, options?: Object) => Peer`
+#### `client.connect(topic: Buffer, peerId: Buffer, options?: Object) => Peer`
 
-Creates a `request` connection for a specific peer and topic. `topic` is optional.
+Creates a `request` connection for a specific `topic` and `peerId`.
 
 `options` include:
 
