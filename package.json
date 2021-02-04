@@ -24,7 +24,7 @@
     "fastq": "^1.8.0",
     "nanocustomassert": "^1.0.0",
     "nanoerror": "^1.0.0",
-    "nanomessage-rpc": "^3.0.0",
+    "nanomessage-rpc": "^3.2.0",
     "nanoresource-promise": "^2.0.0",
     "p-event": "^4.1.0",
     "p-limit": "^3.0.2",
