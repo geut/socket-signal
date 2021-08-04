@@ -1,15 +1,18 @@
-const SocketSignalServer = require('./server')
-const { ERR_PEER_NOT_FOUND } = require('./errors')
-const log = require('debug')('socket-signal:server-map')
+import debug from 'debug'
 
-class SocketSignalServerMap extends SocketSignalServer {
+import { SocketSignalServer } from './server.js'
+import { ERR_PEER_NOT_FOUND } from './errors.js'
+
+const log = debug('socket-signal:server-map')
+
+export class SocketSignalServerMap extends SocketSignalServer {
   constructor (opts = {}) {
     super(opts)
 
     this._peersByTopic = new Map()
   }
 
-  addPeer (rpc, id, topic) {
+  async addPeer (rpc, id, topic) {
     const topicStr = topic.toString('hex')
     const idStr = id.toString('hex')
 
@@ -19,7 +22,7 @@ class SocketSignalServerMap extends SocketSignalServer {
     this._peersByTopic.set(topicStr, peers)
   }
 
-  deletePeer (id, topic) {
+  async deletePeer (id, topic) {
     const idStr = id.toString('hex')
 
     if (!topic) {
@@ -37,13 +40,13 @@ class SocketSignalServerMap extends SocketSignalServer {
     }
   }
 
-  getPeers (topic) {
+  async getPeers (topic) {
     const topicStr = topic.toString('hex')
     if (!this._peersByTopic.has(topicStr)) return []
     return Array.from(this._peersByTopic.get(topicStr).values()).map(peer => peer.id)
   }
 
-  findPeer (id, topic) {
+  async findPeer (id, topic) {
     const idStr = id.toString('hex')
     const peers = this._peersByTopic.get(topic.toString('hex'))
 
@@ -71,17 +74,17 @@ class SocketSignalServerMap extends SocketSignalServer {
   }
 
   async _onJoin (rpc, data) {
-    this.addPeer(rpc, data.id, data.topic)
+    await this.addPeer(rpc, data.id, data.topic)
     log('peer-join', data.id.toString('hex') + ' in ' + data.topic.toString('hex'))
     return this.getPeers(data.topic)
   }
 
   async _onLeave (rpc, data) {
-    this.deletePeer(data.id, data.topic)
+    await this.deletePeer(data.id, data.topic)
   }
 
   async _onOffer (rpc, data) {
-    const remotePeer = this.findPeer(data.remoteId, data.topic)
+    const remotePeer = await this.findPeer(data.remoteId, data.topic)
     log(`peer-offer ${data.id.toString('hex')} -> ${data.remoteId.toString('hex')}`)
     return remotePeer.rpc.call('offer', data)
   }
@@ -91,10 +94,8 @@ class SocketSignalServerMap extends SocketSignalServer {
   }
 
   async _onSignal (rpc, data) {
-    const remotePeer = this.findPeer(data.remoteId, data.topic)
+    const remotePeer = await this.findPeer(data.remoteId, data.topic)
     log(`peer-signal ${data.id.toString('hex')} -> ${data.remoteId.toString('hex')}`)
     remotePeer.rpc.emit('signal', data).catch(() => {})
   }
 }
-
-module.exports = SocketSignalServerMap

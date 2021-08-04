@@ -1,13 +1,13 @@
-const crypto = require('crypto')
-const through = require('through2')
-const duplexify = require('duplexify')
-const wrtc = require('wrtc')
-const pEvent = require('p-event')
+import crypto from 'crypto'
+import through from 'through2'
+import duplexify from 'duplexify'
+import wrtc from 'wrtc'
+import pEvent from 'p-event'
+import { jest } from '@jest/globals'
 
-const { SocketSignalClient, Peer } = require('..')
-const { SocketSignalServerMap } = require('..')
+import { SocketSignalClient, Peer, SocketSignalServerMap } from '../src/index.js'
 
-jest.setTimeout(30 * 1000)
+jest.setTimeout(60 * 1000)
 
 const createSocket = () => {
   const t1 = through()
@@ -20,7 +20,7 @@ const signalFactory = server => (opts = {}) => {
   const { from, to } = createSocket()
 
   const client = new SocketSignalClient(from, {
-    timeout: 2 * 1000,
+    timeout: 15 * 1000,
     ...opts,
     simplePeer: {
       wrtc,
@@ -75,9 +75,15 @@ test('basic connection', async () => {
   expect(server.connections.size).toBe(MAX_SIGNALS)
 
   expect(joinEvent).toHaveBeenCalledTimes(signals.length)
-  expect(joinEvent).toHaveBeenCalledWith(topic, expect.any(Array))
+  expect(joinEvent).toHaveBeenCalledWith(expect.objectContaining({
+    topic: expect.any(Buffer),
+    peers: expect.any(Array)
+  }))
   expect(lookupEvent).toHaveBeenCalledTimes(signals.length)
-  expect(lookupEvent).toHaveBeenCalledWith(topic, expect.any(Array))
+  expect(lookupEvent).toHaveBeenCalledWith(expect.objectContaining({
+    topic: expect.any(Buffer),
+    peers: expect.any(Array)
+  }))
 
   const waitForConnections = []
   for (let i = 0; i < signals.length; i++) {
@@ -87,7 +93,7 @@ test('basic connection', async () => {
     }
 
     const remoteSignal = signals[i].connect(topic, signals[i + 1].id)
-    remoteSignal.on('metadata-updated', peerMetadataEvent)
+    remoteSignal.on('remote-metadata-updated', peerMetadataEvent)
     waitForConnections.push(pEvent(signals[i + 1], 'peer-connected'))
     waitForConnections.push(remoteSignal.ready())
   }
@@ -102,9 +108,13 @@ test('basic connection', async () => {
 
   expect(peerMetadataEvent).toHaveBeenCalledTimes(signals.length - 1)
   expect(peerEvent).toHaveBeenCalledTimes((signals.length * 2) - 2)
-  expect(peerEvent).toHaveBeenCalledWith(expect.any(Peer))
+  expect(peerEvent).toHaveBeenCalledWith(expect.objectContaining({
+    peer: expect.any(Peer)
+  }))
   expect(peerConnectingEvent).toHaveBeenCalledTimes((signals.length * 2) - 2)
-  expect(peerConnectingEvent).toHaveBeenCalledWith(expect.any(Peer))
+  expect(peerConnectingEvent).toHaveBeenCalledWith(expect.objectContaining({
+    peer: expect.any(Peer)
+  }))
 
   for (const signal of signals) {
     await signal.leave(topic)
@@ -112,14 +122,16 @@ test('basic connection', async () => {
   }
 
   expect(leaveEvent).toHaveBeenCalledTimes(signals.length)
-  expect(leaveEvent).toHaveBeenCalledWith(topic)
+  expect(leaveEvent).toHaveBeenCalledWith(expect.objectContaining({
+    topic: expect.any(Buffer)
+  }))
 
   expect(server.connections.size).toBe(0)
 
   await server.close()
 })
 
-test('rejects connection', async (done) => {
+test('rejects connection', async () => {
   expect.assertions(10)
 
   const topic = crypto.randomBytes(32)
@@ -152,7 +164,7 @@ test('rejects connection', async (done) => {
   await signal1.close()
   await signal2.close()
 
-  server.close().finally(done)
+  await server.close()
 })
 
 test('metadata onIncomingPeer', async () => {
@@ -163,8 +175,8 @@ test('metadata onIncomingPeer', async () => {
   const signal1 = createSignal({ metadata: { user: 'peer1' } })
   const signal2 = createSignal({ metadata: { user: 'peer2' } })
 
-  signal2.onIncomingPeer((peer) => {
-    peer.localMetadata = { password: '456' }
+  signal2.onIncomingPeer(async (peer) => {
+    await peer.setMetadata({ password: '456' })
   })
 
   await signal1.join(topic)
@@ -172,13 +184,13 @@ test('metadata onIncomingPeer', async () => {
 
   signal1.connect(topic, signal2.id, { metadata: { password: '123' } })
 
-  const [remotePeer2, remotePeer1] = await Promise.all([
-    pEvent(signal1, 'peer-connected'),
-    pEvent(signal2, 'peer-connected')
+  const [{ peer: remotePeer2 }, { peer: remotePeer1 }] = await Promise.all([
+    signal1.once('peer-connected'),
+    signal2.once('peer-connected')
   ])
 
-  expect(remotePeer2.metadata).toEqual({ user: 'peer2', password: '456' })
-  expect(remotePeer1.metadata).toEqual({ user: 'peer1', password: '123' })
+  expect(remotePeer2.remoteMetadata).toEqual({ user: 'peer2', password: '456' })
+  expect(remotePeer1.remoteMetadata).toEqual({ user: 'peer1', password: '123' })
 
   await signal1.close()
   await signal2.close()
@@ -209,13 +221,13 @@ test('metadata onOffer', async () => {
 
   signal1.connect(topic, signal2.id, { metadata: { password: '123' } })
 
-  const [remotePeer2, remotePeer1] = await Promise.all([
+  const [{ peer: remotePeer2 }, { peer: remotePeer1 }] = await Promise.all([
     pEvent(signal1, 'peer-connected'),
     pEvent(signal2, 'peer-connected')
   ])
 
-  expect(remotePeer2.metadata).toEqual({ user: 'peer2', password: '456' })
-  expect(remotePeer1.metadata).toEqual({ user: 'peer1', password: '123' })
+  expect(remotePeer2.remoteMetadata).toEqual({ user: 'peer2', password: '456' })
+  expect(remotePeer1.remoteMetadata).toEqual({ user: 'peer1', password: '123' })
 
   await signal1.close()
   await signal2.close()
@@ -326,11 +338,10 @@ test('media stream', async () => {
   const peer2 = signal2.peers[0]
 
   const stream2 = await wrtc.getUserMedia({ audio: true })
-  await peer2.addStream(stream2)
+  await peer2.addMediaStream(stream2)
 
   expect((await getRemoteStream(peer1)).id).toBe(stream2.id)
   expect((await getRemoteStream(peer2)).id).toBe(stream1.id)
-
   await signal1.close()
   await signal2.close()
   await server.close()

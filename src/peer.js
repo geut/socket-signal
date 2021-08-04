@@ -1,30 +1,33 @@
-const { NanoresourcePromise } = require('nanoresource-promise/emitter')
-const SimplePeer = require('simple-peer')
-const assert = require('nanocustomassert')
-const pEvent = require('p-event')
-const eos = require('end-of-stream')
+import { NanoresourcePromise } from 'nanoresource-promise'
+import SimplePeer from 'simple-peer'
+import assert from 'nanocustomassert'
+import pEvent from 'p-event'
+import eos from 'end-of-stream'
+import Emittery from 'emittery'
 
-const SignalBatch = require('./signal-batch')
-const { ERR_CONNECTION_CLOSED, ERR_SIGNAL_TIMEOUT } = require('./errors')
+import { SignalBatch } from './signal-batch.js'
+import { ERR_CONNECTION_CLOSED, ERR_SIGNAL_TIMEOUT } from './errors.js'
 
 const kMetadata = Symbol('peer.metadata')
-const kLocalMetadata = Symbol('peer.localmetadata')
+const kRemoteMetadata = Symbol('peer.remotemetadata')
 const kOnSignal = Symbol('peer.onsignal')
 const kOffer = Symbol('peer.offer')
+const kSignalBatch = Symbol('peer.signalbatch')
 
-module.exports = class Peer extends NanoresourcePromise {
+export class Peer extends NanoresourcePromise {
   constructor (opts = {}) {
     super()
 
-    const { onSignal, initiator, sessionId, id, topic, metadata, localMetadata, simplePeer = {}, timeout } = opts
+    new Emittery().bindMethods(this)
+
+    const { onSignal, initiator, sessionId, id, topic, metadata = {}, simplePeer = {}, timeout } = opts
 
     assert(onSignal)
     assert(initiator !== undefined, 'initiator is required')
     assert(Buffer.isBuffer(sessionId) && sessionId.length === 32, 'sessionId is required and must be a buffer of 32')
     assert(Buffer.isBuffer(id) && id.length === 32, 'id is required and must be a buffer of 32')
     assert(Buffer.isBuffer(topic) && topic.length === 32, 'topic must be a buffer of 32')
-    assert(!metadata || typeof metadata === 'object', 'metadata must be an object')
-    assert(!localMetadata || typeof localMetadata === 'object', 'localMetadata must be an object')
+    assert(typeof metadata === 'object', 'metadata must be an object')
 
     this.initiator = initiator
     this.sessionId = sessionId
@@ -37,11 +40,12 @@ module.exports = class Peer extends NanoresourcePromise {
     this.error = null
     this.signals = []
 
+    this[kSignalBatch] = new SignalBatch()
     this[kOnSignal] = onSignal
     this[kOffer] = null
     this[kMetadata] = metadata
-    this[kLocalMetadata] = localMetadata
-    this.once('error', err => {
+    this[kRemoteMetadata] = {}
+    this.once('error').catch(err => {
       this.error = err
     })
 
@@ -60,22 +64,19 @@ module.exports = class Peer extends NanoresourcePromise {
     return this[kMetadata]
   }
 
-  set metadata (metadata) {
+  get remoteMetadata () {
+    return this[kRemoteMetadata]
+  }
+
+  get mediaStreams () {
+    return this.stream._remoteStreams
+  }
+
+  async setMetadata (metadata) {
     assert(!metadata || typeof metadata === 'object', 'metadata must be an object')
     this[kMetadata] = metadata
-    this.emit('metadata-updated', this[kMetadata])
+    await this.emit('metadata-updated', metadata)
     return this[kMetadata]
-  }
-
-  get localMetadata () {
-    return this[kLocalMetadata]
-  }
-
-  set localMetadata (metadata) {
-    assert(!metadata || typeof metadata === 'object', 'localMetadata must be an object')
-    this[kLocalMetadata] = metadata
-    this.emit('local-metadata-updated', this[kLocalMetadata])
-    return this[kLocalMetadata]
   }
 
   async ready () {
@@ -84,26 +85,33 @@ module.exports = class Peer extends NanoresourcePromise {
       if (this.error) throw this.error
       throw new ERR_CONNECTION_CLOSED()
     }
+
     return pEvent(this, 'connect', {
       rejectionEvents: ['error', 'close']
     })
   }
 
-  addStream (mediaStream) {
-    return this.ready()
-      .then(() => this.stream.addStream(mediaStream))
+  async addMediaStream (mediaStream) {
+    await this.ready()
+    return this.stream.addStream(mediaStream)
   }
 
-  removeStream (mediaStream) {
-    return this.ready()
-      .then(() => this.stream.removeStream(mediaStream))
+  async deleteMediaStream (mediaStream) {
+    await this.ready()
+    return this.stream.removeStream(mediaStream)
+  }
+
+  waitForMediaStream () {
+    return pEvent(this, 'stream', {
+      rejectionEvents: ['error', 'close']
+    })
   }
 
   destroy (err) {
     this.stream.destroy(err)
   }
 
-  open (offer) {
+  async open (offer) {
     if (offer) this[kOffer] = offer
     return super.open()
   }
@@ -113,26 +121,19 @@ module.exports = class Peer extends NanoresourcePromise {
       this.destroy(new ERR_SIGNAL_TIMEOUT(this.signals))
     }, this.timeout)
 
-    const signalBatch = new SignalBatch()
-
     const ready = this.ready()
 
-    const onSignal = signal => signalBatch.add(signal)
-    const clean = () => this.stream.removeListener('signal', onSignal)
-    this.once('close', () => clean())
-
-    signalBatch
-      .onSignal(batch => {
-        this.signals = [...this.signals, ...batch]
-        return this[kOnSignal](this, batch)
+    this[kSignalBatch]
+      .open({
+        peer: this,
+        onSignal: (batch) => {
+          this.signals = [...this.signals, ...batch]
+          return this[kOnSignal](this, batch)
+        },
+        onClose: (err) => {
+          if (err) process.nextTick(() => this.destroy(err))
+        }
       })
-      .onClose((err) => {
-        clean()
-        if (err) process.nextTick(() => this.destroy(err))
-      })
-      .resolution(() => this.destroyed)
-
-    this.stream.on('signal', onSignal)
 
     if (!this.initiator && this[kOffer]) {
       this[kOffer].forEach(signal => this.stream.signal(signal))
@@ -152,16 +153,30 @@ module.exports = class Peer extends NanoresourcePromise {
   _initializeSimplePeer () {
     const { streams = [], ...opts } = this.simplePeerOptions
     this.stream = new SimplePeer({ ...opts, initiator: this.initiator })
-    streams.forEach(stream => this.addStream(stream).catch(() => {}))
+    streams.forEach(stream => this.addMediaStream(stream).catch(() => {}))
 
     // close stream support
     this.stream.close = () => process.nextTick(() => this.stream.destroy())
 
-    const onStream = eventStream => this.emit('stream', eventStream)
-    const onSignal = signal => this.emit('signal', signal)
-    const onError = err => this.emit('error', err)
-    const onConnect = () => this.emit('connect')
+    const onStream = mediaStream => this.emit('stream', mediaStream).catch(() => {})
+    const onSignal = signal => {
+      if (this.connected && !this.subscribeMediaStream) {
+        this[kSignalBatch].close()
+        this.emit('signal', signal).catch(() => {})
+        return
+      }
+
+      this[kSignalBatch].add(signal)
+    }
+
+    const onError = error => {
+      this.emit('error', error).catch(() => {})
+    }
+
+    const onConnect = () => this.emit('connect').catch(() => {})
+
     const onClose = () => {
+      this[kSignalBatch].close()
       this.stream.removeListener('stream', onStream)
       this.stream.removeListener('signal', onSignal)
       this.stream.removeListener('error', onError)
@@ -175,5 +190,11 @@ module.exports = class Peer extends NanoresourcePromise {
     this.stream.once('error', onError)
     this.stream.once('connect', onConnect)
     this.stream.once('close', onClose)
+  }
+
+  async _setRemoteMetadata (metadata) {
+    assert(!metadata || typeof metadata === 'object', 'remoteMetadata must be an object')
+    this[kRemoteMetadata] = metadata
+    await this.emit('remote-metadata-updated', metadata)
   }
 }

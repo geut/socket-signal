@@ -2,48 +2,53 @@
   "name": "socket-signal",
   "version": "9.2.1",
   "description": "Signal abstraction to create WebRTC connections through sockets.",
-  "main": "index.js",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js"
+  },
   "files": [
-    "lib",
-    "index.js"
+    "src"
   ],
   "browserslist": [
     "> 5%"
   ],
   "scripts": {
     "start": "node index.js",
-    "test": "jest --verbose --passWithNoTests --forceExit --detectOpenHandles",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest --verbose --passWithNoTests --forceExit",
     "posttest": "npm run lint",
-    "lint": "xd-ns \"**/*.js\"",
+    "lint": "standard \"**/*.js\"",
     "version": "chan release --allow-yanked ${npm_package_version} && git add .",
     "prepublishOnly": "npm test"
   },
   "dependencies": {
     "debug": "^4.1.1",
+    "emittery": "^0.9.2",
     "end-of-stream": "^1.4.4",
-    "fastq": "^1.8.0",
+    "fastq": "^1.11.1",
     "nanocustomassert": "^1.0.0",
     "nanoerror": "^1.0.0",
-    "nanomessage-rpc": "^3.2.0",
+    "nanomessage-rpc": "^5.0.0",
     "nanoresource-promise": "^2.0.0",
     "p-event": "^4.1.0",
     "p-limit": "^3.0.2",
-    "simple-peer": "^9.6.2"
+    "simple-peer": "^9.11.0"
   },
   "devDependencies": {
-    "@geut/chan": "^2.0.0",
-    "@geut/xd": "^1.5.0",
+    "@geut/chan": "^3.1.0",
     "duplexify": "^4.1.1",
-    "jest": "^25.1.0",
-    "standard": "^14.3.1",
+    "enhanced-resolve": "^5.8.2",
+    "jest": "^27.0.4",
+    "standard": "^16.0.1",
     "through2": "^3.0.1",
     "wrtc": "^0.4.4"
   },
   "jest": {
+    "resolver": "./tests/jest-resolver.cjs",
+    "testEnvironment": "jest-environment-node",
+    "transform": {},
     "testMatch": [
       "**/tests/**/*.test.js"
-    ],
-    "testEnvironment": "node"
+    ]
   },
   "standard": {
     "env": [

@@ -120,15 +120,15 @@ class YourServer extends SocketSignalServer {
 
 ### Client
 
-#### `const client = new Client(options)`
+#### `const client = new Client(socket, options)`
 
 Creates a new client instance.
 
 Options include:
 
-- `id: Buffer`: ID of 32 bytes.
+- `id: Buffer`: Buffer of 32 bytes.
 - `requestTimeout: 15 * 1000`: How long to wait for peer requests.
-- `queueConcurrency: 4`: How many incoming connections in concurrent can handle
+- `concurrency: 1`: How many incoming connections in concurrent can handle
 - `metadata: Object`: Metadata to share across network.
 - `simplePeer: Object`: SimplePeer options.
 
@@ -170,8 +170,7 @@ Creates a `request` connection for a specific `topic` and `peerId`.
 - `id: Buffer`: ID of the peer.
 - `sessionId: Buffer`: Unique ID for this connection.
 - `topic: Buffer`: Topic related.
-- `localMetadata: Object`: Your metadata shared with the peer.
-- `metadata: Object`: The remote metadata, belongs to the peer connected to.
+- `metadata: Object`: Metadata object to share with other side.
 - `stream: SimplePeer`: The SimplePeer internal stream.
 - `subscribeMediaStream: boolean`: Set in `true` if you want to use the signal to listen for incoming media streams. Default: `false`.
 

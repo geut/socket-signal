@@ -1,64 +1,67 @@
-const crypto = require('crypto')
+import crypto from 'crypto'
 
-const assert = require('nanocustomassert')
-const fastq = require('fastq')
-const pEvent = require('p-event')
-const nanomessagerpc = require('nanomessage-rpc')
-const { NanoresourcePromise } = require('nanoresource-promise/emitter')
+import assert from 'nanocustomassert'
+import { promise as fastq } from 'fastq'
+import pEvent from 'p-event'
+import { NanomessageRPC, useSocket } from 'nanomessage-rpc'
+import { NanoresourcePromise } from 'nanoresource-promise'
+import Emittery from 'emittery'
 
-const Peer = require('./peer')
+import { Peer } from './peer.js'
 
-const kConnectionsQueue = Symbol('socketsignal.connectionsqueue')
+const kOutQueue = Symbol('socketsignal.outqueue')
+const kInQueue = Symbol('socketsignal.inqueue')
 const kPeers = Symbol('socketsignal.peers')
 const kDefineActions = Symbol('socketsignal.defineactions')
 const kDefineEvents = Symbol('socketsignal.defineevents')
 const kAddPeer = Symbol('socketsignal.addpeer')
 const kCreatePeer = Symbol('socketsignal.createpeer')
 const kOnSignal = Symbol('socketsignal.onsignal')
+const kRequestTimeout = Symbol('socketsignal.requesttimeout')
 
-function worker ({ peer, data }, done) {
-  this.open()
-    .then(() => {
-      this.emit('peer-connecting', peer)
-      return peer.open(data)
-    })
-    .then(() => done())
-    .catch(err => done(err))
+async function worker ({ peer, data }) {
+  await this.open()
+  await this.emit('peer-connecting', { peer })
+  await peer.open(data)
 }
 
-class SocketSignalClient extends NanoresourcePromise {
+export class SocketSignalClient extends NanoresourcePromise {
   /**
    * @constructor
-   * @param {DuplexStream} socket
+   * @param {DuplexStream|NanomessageRPC} socket
    * @param {Object} opts
    * @param {Buffer} opts.id Id of 32 bytes
    * @param {number} opts.requestTimeout How long to wait for peer requests
-   * @param {number} opts.queueConcurrency How many incoming connections in concurrent can handle
+   * @param {({ incoming: number, outgoing: number }|number)} [opts.concurrency] How many outgoing/incoming connections in concurrent can handle
    * @param {Object} opts.metadata Metadata to share across network
    * @param {Object} opts.simplePeer SimplePeer options
    */
   constructor (socket, opts = {}) {
     super()
 
+    new Emittery().bindMethods(this)
+
     const {
       id = crypto.randomBytes(32),
       requestTimeout = 15 * 1000,
-      queueConcurrency = 4,
+      concurrency = 1,
       simplePeer = {},
-      metadata
+      metadata = {}
     } = opts
 
     assert(!metadata || typeof metadata === 'object', 'metadata must be an object')
 
     this.socket = socket
-    this.rpc = nanomessagerpc({ timeout: requestTimeout, ...nanomessagerpc.useSocket(socket) })
+    this.rpc = new NanomessageRPC({ timeout: requestTimeout, ...useSocket(socket) })
     this.id = id
     this.metadata = metadata
     this.simplePeer = simplePeer
-    this.requestTimeout = requestTimeout
+    this[kRequestTimeout] = requestTimeout
 
     this[kPeers] = new Map()
-    this[kConnectionsQueue] = fastq(this, worker, queueConcurrency)
+    this[kOutQueue] = fastq(this, worker, 1)
+    this[kInQueue] = fastq(this, worker, 1)
+    this.setConcurrency(concurrency)
 
     // rpc
     this[kDefineActions]()
@@ -93,6 +96,50 @@ class SocketSignalClient extends NanoresourcePromise {
   }
 
   /**
+   * @readonly
+   * @type {number}
+   */
+  get requestTimeout () {
+    return this[kRequestTimeout]
+  }
+
+  /**
+   * @readonly
+   * @type {Object}
+   */
+  get concurrency () {
+    return {
+      incoming: this[kInQueue].concurrency,
+      outgoing: this[kOutQueue].concurrency
+    }
+  }
+
+  /**
+   * @param {number} timeout
+   * @returns {Nanomessage}
+   */
+  setRequestTimeout (timeout) {
+    this.rpc.setRequestsTimeout(timeout)
+    this[kRequestTimeout] = timeout
+    return this
+  }
+
+  /**
+   * @param {({ incoming: number, outgoing: number }|number)} value
+   * @returns {Nanomessage}
+   */
+  setConcurrency (value) {
+    if (typeof value === 'number') {
+      this[kInQueue].concurrency = value
+      this[kOutQueue].concurrency = value
+    } else {
+      this[kInQueue].concurrency = value.incoming || this[kInQueue].concurrency
+      this[kOutQueue].concurrency = value.outgoing || this[kOutQueue].concurrency
+    }
+    return this
+  }
+
+  /**
    * Get peers by the topic
    *
    * @param {Buffer} topic
@@ -114,8 +161,8 @@ class SocketSignalClient extends NanoresourcePromise {
     assert(Buffer.isBuffer(topic) && topic.length === 32, 'topic must be a Buffer of 32 bytes')
 
     await this.open()
-    const peers = await this.rpc.call('join', this._buildMessage({ topic }))
-    this.emit('join', topic, peers)
+    const peers = await this.rpc.call('socket-signal-join', this._buildMessage({ topic }))
+    await this.emit('join', { topic, peers })
     return peers
   }
 
@@ -132,8 +179,8 @@ class SocketSignalClient extends NanoresourcePromise {
     assert(!topic || (Buffer.isBuffer(topic) && topic.length === 32), 'topic must be a Buffer of 32 bytes')
 
     await this.open()
-    await this.rpc.call('leave', this._buildMessage({ topic }))
-    this.emit('leave', topic)
+    await this.rpc.call('socket-signal-leave', this._buildMessage({ topic }))
+    await this.emit('leave', { topic })
   }
 
   /**
@@ -146,8 +193,8 @@ class SocketSignalClient extends NanoresourcePromise {
     assert(Buffer.isBuffer(topic) && topic.length === 32, 'topic must be a Buffer of 32 bytes')
 
     await this.open()
-    const peers = await this.rpc.call('lookup', this._buildMessage({ topic }))
-    this.emit('lookup', topic, peers)
+    const peers = await this.rpc.call('socket-signal-lookup', this._buildMessage({ topic }))
+    await this.emit('lookup', { topic, peers })
     return peers
   }
 
@@ -168,9 +215,9 @@ class SocketSignalClient extends NanoresourcePromise {
     assert(Buffer.isBuffer(topic) && topic.length === 32, 'topic must be a Buffer of 32 bytes')
     assert(Buffer.isBuffer(peerId) && peerId.length === 32, 'peerId must be a Buffer of 32 bytes')
 
-    const { metadata: localMetadata, simplePeer = {} } = opts
+    const { metadata, simplePeer = {} } = opts
 
-    const peer = this[kCreatePeer]({ initiator: true, sessionId: crypto.randomBytes(32), id: peerId, topic, localMetadata, simplePeer })
+    const peer = this[kCreatePeer]({ initiator: true, sessionId: crypto.randomBytes(32), id: peerId, topic, metadata, simplePeer })
 
     this[kAddPeer](peer)
 
@@ -239,18 +286,15 @@ class SocketSignalClient extends NanoresourcePromise {
   }
 
   async _close () {
-    this[kConnectionsQueue].kill()
+    this[kOutQueue].kill()
+    this[kInQueue].kill()
     await this.rpc.close()
     await Promise.all(this.peers.map(peer => new Promise(resolve => peer.close(() => resolve()))))
   }
 
   _buildMessage (data) {
-    const { localMetadata = {}, ...msg } = data
-    let metadata = this.metadata || {}
-    if (localMetadata) {
-      metadata = { ...metadata, ...localMetadata }
-    }
-    return { ...msg, id: this.id, metadata }
+    const { metadata = {}, ...msg } = data
+    return { ...msg, id: this.id, metadata: Object.assign({}, this.metadata, metadata) }
   }
 
   /**
@@ -268,10 +312,13 @@ class SocketSignalClient extends NanoresourcePromise {
           sessionId: message.sessionId,
           id: message.id,
           topic: message.topic,
-          metadata: message.metadata,
-          localMetadata: result && result.metadata,
+          metadata: result && result.metadata ? result.metadata : {},
           simplePeer: result && result.simplePeer
         })
+
+        if (message.metadata) {
+          await peer._setRemoteMetadata(message.metadata)
+        }
 
         this[kAddPeer](peer, message.data)
 
@@ -301,20 +348,22 @@ class SocketSignalClient extends NanoresourcePromise {
     const sessionId = peer.sessionId.toString('hex')
 
     this[kPeers].set(sessionId, peer)
-    peer.once('close', () => {
+    peer.once('close').then(() => {
       this[kPeers].delete(sessionId)
     })
-    peer.once('error', err => {
-      this.emit('peer-error', err, peer)
+    peer.once('error').then(error => {
+      this.emit('peer-error', { error, peer })
     })
 
-    this[kConnectionsQueue].push({ peer, data }, (err) => {
-      if (err || this.closing || this.closed) return process.nextTick(() => peer.destroy(err))
-      this.emit('peer-connected', peer)
+    this[data ? kInQueue : kOutQueue].push({ peer, data }).then(() => {
+      if (this.closing || this.closed) return process.nextTick(() => peer.destroy())
+      return this.emit('peer-connected', { peer })
+    }).catch((err) => {
+      process.nextTick(() => peer.destroy(err))
     })
 
     // peer queue
-    this.emit('peer-queue', peer)
+    this.emit('peer-queue', { peer })
   }
 
   /**
@@ -324,7 +373,7 @@ class SocketSignalClient extends NanoresourcePromise {
     opts = Object.assign({}, opts, {
       onSignal: (peer, batch) => this[kOnSignal](peer, batch),
       simplePeer: Object.assign({}, this.simplePeer, opts.simplePeer),
-      timeout: this.requestTimeout
+      timeout: this[kRequestTimeout]
     })
 
     let peer
@@ -341,24 +390,22 @@ class SocketSignalClient extends NanoresourcePromise {
    * @private
    */
   async [kOnSignal] (peer, batch) {
-    if (peer.destroyed || (peer.connected && !peer.subscribeMediaStream)) return
-
     const payload = () => this._buildMessage({
       remoteId: peer.id,
       topic: peer.topic,
       sessionId: peer.sessionId,
       data: batch,
-      localMetadata: peer.localMetadata
+      metadata: peer.metadata
     })
 
     if (!peer.connected) {
       const type = batch[0].type
 
       if (type === 'offer') {
-        const response = await this.rpc.call('offer', payload())
+        const response = await this.rpc.call('socket-signal-offer', payload())
         await this._onAnswer(response)
         response.data.forEach(signal => peer.stream.signal(signal))
-        peer.metadata = response.metadata
+        await peer._setRemoteMetadata(response.metadata)
         return
       }
 
@@ -368,8 +415,6 @@ class SocketSignalClient extends NanoresourcePromise {
       }
     }
 
-    await this.rpc.emit('signal', payload())
+    await this.rpc.emit('socket-signal-onsignal', payload())
   }
 }
-
-module.exports = SocketSignalClient

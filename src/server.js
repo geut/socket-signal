@@ -13,16 +13,18 @@
  * @property {Array<Object>} data
 */
 
-const crypto = require('crypto')
-const nanomessagerpc = require('nanomessage-rpc')
+import debug from 'debug'
+import crypto from 'crypto'
+import { NanomessageRPC, useSocket } from 'nanomessage-rpc'
 
-const { NanoresourcePromise } = require('nanoresource-promise/emitter')
-const log = require('debug')('socketsignal:server')
+import { NanoresourcePromise } from 'nanoresource-promise/emitter.js'
+
+const log = debug('socketsignal:server')
 
 const kDefineActions = Symbol('socketsignal.defineactions')
 const kDefineEvents = Symbol('socketsignal.defineevents')
 
-class SocketSignalServer extends NanoresourcePromise {
+export class SocketSignalServer extends NanoresourcePromise {
   constructor (opts = {}) {
     super()
 
@@ -45,19 +47,18 @@ class SocketSignalServer extends NanoresourcePromise {
   /**
    * Adds a duplex stream socket
    *
-   * @param {DuplexStream} socket
+   * @param {DuplexStream|NanomessageRPC} socket
    * @returns {NanomessageRPC}
    */
   async addSocket (socket) {
     await this.open()
 
-    const rpc = nanomessagerpc({ timeout: this._requestTimeout, ...this._rpcOpts, ...nanomessagerpc.useSocket(socket) })
+    const rpc = new NanomessageRPC({ timeout: this._requestTimeout, ...this._rpcOpts, ...useSocket(socket) })
+    rpc.socket = socket
+    rpc.id = rpc.id || crypto.randomBytes(32)
 
     this[kDefineActions](rpc)
     this[kDefineEvents](rpc)
-
-    rpc.id = crypto.randomBytes(32)
-    rpc.socket = socket
 
     const deleteConnection = () => {
       if (this.connections.delete(rpc)) {
@@ -169,21 +170,27 @@ class SocketSignalServer extends NanoresourcePromise {
    */
   async _onSignal () {}
 
+  async _onPreRequest () {}
+
   /**
    * @private
    */
   [kDefineActions] (rpc) {
     rpc.actions({
-      join: (data = {}) => {
+      'socket-signal-join': async (data = {}) => {
+        await this._onPreRequest(rpc, data, 'join')
         return this._onJoin(rpc, data)
       },
-      leave: (data = {}) => {
+      'socket-signal-leave': async (data = {}) => {
+        await this._onPreRequest(rpc, data, 'leave')
         return this._onLeave(rpc, data)
       },
-      offer: (data = {}) => {
+      'socket-signal-offer': async (data = {}) => {
+        await this._onPreRequest(rpc, data, 'offer')
         return this._onOffer(rpc, data)
       },
-      lookup: (data = {}) => {
+      'socket-signal-lookup': async (data = {}) => {
+        await this._onPreRequest(rpc, data, 'lookup')
         return this._onLookup(rpc, data)
       }
     })
@@ -193,8 +200,9 @@ class SocketSignalServer extends NanoresourcePromise {
    * @private
    */
   [kDefineEvents] (rpc) {
-    rpc.on('signal', async (data = {}) => {
+    rpc.on('socket-signal-onsignal', async (data = {}) => {
       try {
+        await this._onPreRequest(rpc, data, 'signal')
         await this._onSignal(rpc, data)
       } catch (err) {
         log('signal error', err)
@@ -202,5 +210,3 @@ class SocketSignalServer extends NanoresourcePromise {
     })
   }
 }
-
-module.exports = SocketSignalServer
