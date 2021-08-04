@@ -17,7 +17,6 @@
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --verbose --passWithNoTests --forceExit",
     "posttest": "npm run lint",
     "lint": "standard \"**/*.js\"",
-    "version": "chan release --allow-yanked ${npm_package_version} && git add .",
     "prepublishOnly": "npm test"
   },
   "dependencies": {
@@ -34,7 +33,6 @@
     "simple-peer": "^9.11.0"
   },
   "devDependencies": {
-    "@geut/chan": "^3.1.0",
     "duplexify": "^4.1.1",
     "enhanced-resolve": "^5.8.2",
     "jest": "^27.0.4",
