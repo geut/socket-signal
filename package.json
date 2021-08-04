@@ -1,6 +1,6 @@
 {
   "name": "socket-signal",
-  "version": "9.2.1",
+  "version": "10.0.0",
   "description": "Signal abstraction to create WebRTC connections through sockets.",
   "type": "module",
   "exports": {
