@@ -287,6 +287,10 @@ export class SocketSignalClient extends NanoresourcePromise {
     return this
   }
 
+  onRemoteConnect (handler) {
+    this._onRemoteConnect = handler
+  }
+
   /**
    * Close connections by topic
    *
