@@ -392,3 +392,30 @@ test('remoteConnect', async () => {
   await signal2.close()
   await server.close()
 })
+
+test.only('fail remoteConnect', async () => {
+  const topic = crypto.randomBytes(32)
+  const server = new SocketSignalServerMap()
+  const createSignal = signalFactory(server)
+
+  const signal1 = createSignal({ metadata: { user: 'peer1' } })
+  const signal2 = createSignal({ metadata: { user: 'peer2' } })
+
+  await signal1.join(topic)
+  await signal2.join(topic)
+
+  signal2.onRemoteConnect(() => {
+    throw new Error('test')
+  })
+
+  const peer = signal1.remoteConnect(topic, signal2.id)
+
+  await Promise.all([
+    expect(peer.ready()).rejects.toThrow('test'),
+    peer.once('close')
+  ])
+
+  await signal1.close()
+  await signal2.close()
+  await server.close()
+})

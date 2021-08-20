@@ -11,6 +11,7 @@ const kMetadata = Symbol('peer.metadata')
 const kRemoteMetadata = Symbol('peer.remotemetadata')
 const kOnSignal = Symbol('peer.onsignal')
 const kOffer = Symbol('peer.offer')
+const kAnswer = Symbol('peer.answer')
 const kSignalBatch = Symbol('peer.signalbatch')
 
 export class Peer extends NanoresourcePromise {
@@ -74,13 +75,6 @@ export class Peer extends NanoresourcePromise {
     this[kMetadata] = metadata
     await this.emit('metadata-updated', metadata)
     return this[kMetadata]
-  }
-
-  setOffer (offer) {
-    this[kOffer] = offer
-    this.emit('offer-updated').catch(err => {
-      console.error(err)
-    })
   }
 
   async ready () {
@@ -196,5 +190,26 @@ export class Peer extends NanoresourcePromise {
     assert(!metadata || typeof metadata === 'object', 'remoteMetadata must be an object')
     this[kRemoteMetadata] = metadata
     await this.emit('remote-metadata-updated', metadata)
+  }
+
+  _setOffer (offer) {
+    this[kOffer] = offer
+    this.emit('offer-updated', this[kOffer]).catch(err => {
+      console.error(err)
+    })
+  }
+
+  _setAnswer (answer) {
+    this[kAnswer] = answer
+    this.emit('answer-updated', this[kAnswer]).catch(err => {
+      console.error(err)
+    })
+  }
+
+  async _waitForAnswer () {
+    if (this[kAnswer]) return this[kAnswer]
+    return pEvent(this, 'answer-updated', {
+      rejectionEvents: ['error', 'closed']
+    })
   }
 }

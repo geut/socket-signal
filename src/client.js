@@ -2,7 +2,6 @@ import crypto from 'crypto'
 
 import assert from 'nanocustomassert'
 import { promise as fastq } from 'fastq'
-import pEvent from 'p-event'
 import { NanomessageRPC, useSocket } from 'nanomessage-rpc'
 import { NanoresourcePromise } from 'nanoresource-promise/emittery'
 
@@ -354,19 +353,17 @@ export class SocketSignalClient extends NanoresourcePromise {
             metadata: result && result.metadata ? result.metadata : {},
             simplePeer: result && result.simplePeer
           })
+
+          this[kAddPeer](peer)
         }
 
         if (message.metadata) {
           await peer._setRemoteMetadata(message.metadata)
         }
 
-        peer.setOffer(message.data)
+        peer._setOffer(message.data)
 
-        this[kAddPeer](peer)
-
-        return pEvent(peer, 'answer', {
-          rejectionEvents: ['error', 'closed']
-        })
+        return peer._waitForAnswer()
       },
       /**
        * @returns {Peer|Error}
@@ -471,7 +468,7 @@ export class SocketSignalClient extends NanoresourcePromise {
 
       if (type === 'answer') {
         await this._onIncomingPeer(peer)
-        return peer.emit('answer', payload())
+        return peer._setAnswer(payload())
       }
     }
 
