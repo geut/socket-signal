@@ -27,7 +27,7 @@ export class SignalBatch {
     if (this._closed) return
     this._limit.clearQueue()
     this._closed = true
-    this._onClose(err)
+    this._onClose && this._onClose(err)
   }
 
   _run () {

@@ -75,18 +75,25 @@ export class SocketSignalServerMap extends SocketSignalServer {
 
   async _onJoin (rpc, data) {
     await this.addPeer(rpc, data.id, data.topic)
-    log('peer-join', data.id.toString('hex') + ' in ' + data.topic.toString('hex'))
+    log('on-join', data.id.toString('hex') + ' in ' + data.topic.toString('hex'))
     return this.getPeers(data.topic)
   }
 
-  async _onLeave (rpc, data) {
+  async _onLeave (_, data) {
+    log('on-leave', data.id.toString('hex') + ' in ' + data.topic.toString('hex'))
     await this.deletePeer(data.id, data.topic)
   }
 
-  async _onOffer (rpc, data) {
+  async _onOffer (_, data) {
     const remotePeer = await this.findPeer(data.remoteId, data.topic)
-    log(`peer-offer ${data.id.toString('hex')} -> ${data.remoteId.toString('hex')}`)
+    log(`on-offer ${data.id.toString('hex')} -> ${data.remoteId.toString('hex')}`)
     return remotePeer.rpc.call('offer', data)
+  }
+
+  async _onRemoteConnect (_, data) {
+    const remotePeer = await this.findPeer(data.remoteId, data.topic)
+    log(`on-remote-connect ${data.id.toString('hex')} -> ${data.remoteId.toString('hex')}`)
+    return remotePeer.rpc.call('remoteConnect', data)
   }
 
   async _onLookup (rpc, data) {

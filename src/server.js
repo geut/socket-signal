@@ -17,7 +17,7 @@ import debug from 'debug'
 import crypto from 'crypto'
 import { NanomessageRPC, useSocket } from 'nanomessage-rpc'
 
-import { NanoresourcePromise } from 'nanoresource-promise/emitter.js'
+import { NanoresourcePromise } from 'nanoresource-promise/emitter'
 
 const log = debug('socketsignal:server')
 
@@ -162,6 +162,16 @@ export class SocketSignalServer extends NanoresourcePromise {
   async _onOffer () {}
 
   /**
+   * Action remoteConnect
+   *
+   * @abstract
+   * @param {NanomessageRPC} rpc
+   * @param {SignalData} data
+   * @returns {Promise<SignalData>}
+   */
+  async _onRemoteConnect () {}
+
+  /**
    * Event signal
    *
    * @abstract
@@ -192,6 +202,10 @@ export class SocketSignalServer extends NanoresourcePromise {
       'socket-signal-lookup': async (data = {}) => {
         await this._onPreRequest(rpc, data, 'lookup')
         return this._onLookup(rpc, data)
+      },
+      'socket-signal-remote-connect': async (data = {}) => {
+        await this._onPreRequest(rpc, data, 'remoteConnect')
+        return this._onRemoteConnect(rpc, data)
       }
     })
   }

@@ -1,9 +1,8 @@
-import { NanoresourcePromise } from 'nanoresource-promise'
+import { NanoresourcePromise } from 'nanoresource-promise/emittery'
 import SimplePeer from 'simple-peer'
 import assert from 'nanocustomassert'
 import pEvent from 'p-event'
 import eos from 'end-of-stream'
-import Emittery from 'emittery'
 
 import { SignalBatch } from './signal-batch.js'
 import { ERR_CONNECTION_CLOSED, ERR_SIGNAL_TIMEOUT } from './errors.js'
@@ -17,8 +16,6 @@ const kSignalBatch = Symbol('peer.signalbatch')
 export class Peer extends NanoresourcePromise {
   constructor (opts = {}) {
     super()
-
-    new Emittery().bindMethods(this)
 
     const { onSignal, initiator, sessionId, id, topic, metadata = {}, simplePeer = {}, timeout } = opts
 
@@ -79,6 +76,13 @@ export class Peer extends NanoresourcePromise {
     return this[kMetadata]
   }
 
+  setOffer (offer) {
+    this[kOffer] = offer
+    this.emit('offer-updated').catch(err => {
+      console.error(err)
+    })
+  }
+
   async ready () {
     if (this.connected) return
     if (this.destroyed) {
@@ -111,11 +115,6 @@ export class Peer extends NanoresourcePromise {
     this.stream.destroy(err)
   }
 
-  async open (offer) {
-    if (offer) this[kOffer] = offer
-    return super.open()
-  }
-
   async _open () {
     const timeout = setTimeout(() => {
       this.destroy(new ERR_SIGNAL_TIMEOUT(this.signals))
@@ -135,7 +134,8 @@ export class Peer extends NanoresourcePromise {
         }
       })
 
-    if (!this.initiator && this[kOffer]) {
+    if (!this.initiator) {
+      if (!this[kOffer]) await this.once('offer-updated')
       this[kOffer].forEach(signal => this.stream.signal(signal))
     }
 

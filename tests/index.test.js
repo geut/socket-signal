@@ -347,7 +347,7 @@ test('media stream', async () => {
   await server.close()
 })
 
-test('connect with topic in null', async () => {
+test('connect without being in a swarm', async () => {
   const topic = crypto.randomBytes(32)
   const server = new SocketSignalServerMap()
   const createSignal = signalFactory(server)
@@ -360,6 +360,30 @@ test('connect with topic in null', async () => {
   signal1.connect(topic, signal2.id)
 
   await Promise.all([
+    pEvent(signal1, 'peer-connected'),
+    pEvent(signal2, 'peer-connected')
+  ])
+
+  await signal1.close()
+  await signal2.close()
+  await server.close()
+})
+
+test('remoteConnect', async () => {
+  const topic = crypto.randomBytes(32)
+  const server = new SocketSignalServerMap()
+  const createSignal = signalFactory(server)
+
+  const signal1 = createSignal({ metadata: { user: 'peer1' } })
+  const signal2 = createSignal({ metadata: { user: 'peer2' } })
+
+  await signal1.join(topic)
+  await signal2.join(topic)
+
+  const peer = signal1.remoteConnect(topic, signal2.id)
+
+  await Promise.all([
+    peer.ready(),
     pEvent(signal1, 'peer-connected'),
     pEvent(signal2, 'peer-connected')
   ])

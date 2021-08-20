@@ -4,8 +4,7 @@ import assert from 'nanocustomassert'
 import { promise as fastq } from 'fastq'
 import pEvent from 'p-event'
 import { NanomessageRPC, useSocket } from 'nanomessage-rpc'
-import { NanoresourcePromise } from 'nanoresource-promise'
-import Emittery from 'emittery'
+import { NanoresourcePromise } from 'nanoresource-promise/emittery'
 
 import { Peer } from './peer.js'
 
@@ -19,10 +18,10 @@ const kCreatePeer = Symbol('socketsignal.createpeer')
 const kOnSignal = Symbol('socketsignal.onsignal')
 const kRequestTimeout = Symbol('socketsignal.requesttimeout')
 
-async function worker ({ peer, data }) {
+async function worker (peer) {
   await this.open()
   await this.emit('peer-connecting', { peer })
-  await peer.open(data)
+  await peer.open()
 }
 
 export class SocketSignalClient extends NanoresourcePromise {
@@ -38,8 +37,6 @@ export class SocketSignalClient extends NanoresourcePromise {
    */
   constructor (socket, opts = {}) {
     super()
-
-    new Emittery().bindMethods(this)
 
     const {
       id = crypto.randomBytes(32),
@@ -225,6 +222,40 @@ export class SocketSignalClient extends NanoresourcePromise {
   }
 
   /**
+   * Send a request connect to establish the connection starting from the remote side
+   * @param {*} topic
+   * @param {*} peerId
+   * @param {*} opts
+   */
+  remoteConnect (topic, peerId, opts = {}) {
+    assert(Buffer.isBuffer(topic) && topic.length === 32, 'topic must be a Buffer of 32 bytes')
+    assert(Buffer.isBuffer(peerId) && peerId.length === 32, 'peerId must be a Buffer of 32 bytes')
+
+    const { metadata, simplePeer = {} } = opts
+
+    const peer = this[kCreatePeer]({ initiator: false, sessionId: crypto.randomBytes(32), id: peerId, topic, metadata, simplePeer })
+
+    const unsubscribe = peer.on('open', async () => {
+      unsubscribe()
+
+      const payload = this._buildMessage({
+        sessionId: peer.sessionId,
+        remoteId: peer.id,
+        topic: peer.topic,
+        metadata: peer.metadata
+      })
+
+      await this.rpc.call('socket-signal-remote-connect', payload)
+    })
+
+    peer.once('close').finally(() => unsubscribe())
+
+    this[kAddPeer](peer)
+
+    return peer
+  }
+
+  /**
    * Async handler for incoming peers, peers that you don't get it from .connect(id, topic)
    *
    * This is the right place to define rules to accept or reject connections.
@@ -281,6 +312,8 @@ export class SocketSignalClient extends NanoresourcePromise {
    */
   async _onAnswer (data) {}
 
+  async _onRemoteConnect (data) {}
+
   async _open () {
     await this.rpc.open()
   }
@@ -307,24 +340,47 @@ export class SocketSignalClient extends NanoresourcePromise {
 
         assert(!result || typeof result === 'object')
 
-        const peer = this[kCreatePeer]({
-          initiator: false,
-          sessionId: message.sessionId,
-          id: message.id,
-          topic: message.topic,
-          metadata: result && result.metadata ? result.metadata : {},
-          simplePeer: result && result.simplePeer
-        })
+        let peer = this.getPeersByTopic(message.topic).find(peer => peer.sessionId.equals(message.sessionId))
+        if (!peer) {
+          peer = this[kCreatePeer]({
+            initiator: false,
+            sessionId: message.sessionId,
+            id: message.id,
+            topic: message.topic,
+            metadata: result && result.metadata ? result.metadata : {},
+            simplePeer: result && result.simplePeer
+          })
+        }
 
         if (message.metadata) {
           await peer._setRemoteMetadata(message.metadata)
         }
 
-        this[kAddPeer](peer, message.data)
+        peer.setOffer(message.data)
+
+        this[kAddPeer](peer)
 
         return pEvent(peer, 'answer', {
           rejectionEvents: ['error', 'closed']
         })
+      },
+      /**
+       * @returns {Peer|Error}
+       */
+      remoteConnect: async (message) => {
+        const opts = (await this._onRemoteConnect({
+          initiator: true,
+          sessionId: message.sessionId,
+          id: message.id,
+          topic: message.topic,
+          metadata: message.metadata
+        })) || {}
+
+        const { metadata, simplePeer = {} } = opts
+
+        const peer = this[kCreatePeer]({ initiator: true, sessionId: message.sessionId, id: message.id, topic: message.topic, metadata, simplePeer })
+        await peer._setRemoteMetadata(message.metadata) // private
+        this[kAddPeer](peer)
       }
     })
   }
@@ -344,7 +400,7 @@ export class SocketSignalClient extends NanoresourcePromise {
   /**
    * @private
    */
-  [kAddPeer] (peer, data) {
+  [kAddPeer] (peer) {
     const sessionId = peer.sessionId.toString('hex')
 
     this[kPeers].set(sessionId, peer)
@@ -355,7 +411,7 @@ export class SocketSignalClient extends NanoresourcePromise {
       this.emit('peer-error', { error, peer })
     })
 
-    this[data ? kInQueue : kOutQueue].push({ peer, data }).then(() => {
+    this[peer.initiator ? kOutQueue : kInQueue].push(peer).then(() => {
       if (this.closing || this.closed) return process.nextTick(() => peer.destroy())
       return this.emit('peer-connected', { peer })
     }).catch((err) => {
