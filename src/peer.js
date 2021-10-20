@@ -1,7 +1,6 @@
 import { NanoresourcePromise } from 'nanoresource-promise/emittery'
 import SimplePeer from 'simple-peer'
 import assert from 'nanocustomassert'
-import pEvent from 'p-event'
 import eos from 'end-of-stream'
 
 import { SignalBatch } from './signal-batch.js'
@@ -13,6 +12,18 @@ const kOnSignal = Symbol('peer.onsignal')
 const kOffer = Symbol('peer.offer')
 const kAnswer = Symbol('peer.answer')
 const kSignalBatch = Symbol('peer.signalbatch')
+
+const waitForEvent = (emitter, event) => {
+  return emitter.once([event, 'error', 'closed']).then(data => {
+    if (data instanceof Error) {
+      throw data
+    }
+
+    if (emitter.closed) throw new ERR_CONNECTION_CLOSED(emitter.sessionId)
+
+    return data
+  })
+}
 
 export class Peer extends NanoresourcePromise {
   constructor (opts = {}) {
@@ -81,12 +92,10 @@ export class Peer extends NanoresourcePromise {
     if (this.connected) return
     if (this.destroyed) {
       if (this.error) throw this.error
-      throw new ERR_CONNECTION_CLOSED()
+      throw new ERR_CONNECTION_CLOSED(this.sessionId)
     }
 
-    return pEvent(this, 'connect', {
-      rejectionEvents: ['error', 'close']
-    })
+    return waitForEvent(this, 'connect')
   }
 
   async addMediaStream (mediaStream) {
@@ -100,9 +109,7 @@ export class Peer extends NanoresourcePromise {
   }
 
   waitForMediaStream () {
-    return pEvent(this, 'stream', {
-      rejectionEvents: ['error', 'close']
-    })
+    return waitForEvent(this, 'stream')
   }
 
   destroy (err) {
@@ -176,7 +183,6 @@ export class Peer extends NanoresourcePromise {
       this.stream.removeListener('error', onError)
       this.stream.removeListener('connect', onConnect)
       this.close().catch(() => {})
-      this.emit('close')
     }
 
     this.stream.on('stream', onStream)
@@ -208,8 +214,6 @@ export class Peer extends NanoresourcePromise {
 
   async _waitForAnswer () {
     if (this[kAnswer]) return this[kAnswer]
-    return pEvent(this, 'answer-updated', {
-      rejectionEvents: ['error', 'closed']
-    })
+    return waitForEvent(this, 'answer-updated')
   }
 }

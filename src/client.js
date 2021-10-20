@@ -405,11 +405,9 @@ export class SocketSignalClient extends NanoresourcePromise {
     const sessionId = peer.sessionId.toString('hex')
 
     this[kPeers].set(sessionId, peer)
-    peer.once('close').then(() => {
+    peer.once(['closed', 'error']).then(error => {
       this[kPeers].delete(sessionId)
-    })
-    peer.once('error').then(error => {
-      this.emit('peer-error', { error, peer })
+      if (error) this.emit('peer-error', { error, peer })
     })
 
     this[peer.initiator ? kOutQueue : kInQueue].push(peer).then(() => {

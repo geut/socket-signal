@@ -2,7 +2,6 @@ import crypto from 'crypto'
 import through from 'through2'
 import duplexify from 'duplexify'
 import wrtc from 'wrtc'
-import pEvent from 'p-event'
 import { jest } from '@jest/globals'
 
 import { SocketSignalClient, Peer, SocketSignalServerMap } from '../src/index.js'
@@ -88,13 +87,13 @@ test('basic connection', async () => {
   const waitForConnections = []
   for (let i = 0; i < signals.length; i++) {
     if (!signals[i + 1]) {
-      waitForConnections.push(pEvent(signals[i], 'peer-connected'))
+      waitForConnections.push(signals[i].once('peer-connected'))
       continue
     }
 
     const remoteSignal = signals[i].connect(topic, signals[i + 1].id)
     remoteSignal.on('remote-metadata-updated', peerMetadataEvent)
-    waitForConnections.push(pEvent(signals[i + 1], 'peer-connected'))
+    waitForConnections.push(signals[i + 1].once('peer-connected'))
     waitForConnections.push(remoteSignal.ready())
   }
 
@@ -222,8 +221,8 @@ test('metadata onOffer', async () => {
   signal1.connect(topic, signal2.id, { metadata: { password: '123' } })
 
   const [{ peer: remotePeer2 }, { peer: remotePeer1 }] = await Promise.all([
-    pEvent(signal1, 'peer-connected'),
-    pEvent(signal2, 'peer-connected')
+    signal1.once('peer-connected'),
+    signal2.once('peer-connected')
   ])
 
   expect(remotePeer2.remoteMetadata).toEqual({ user: 'peer2', password: '456' })
@@ -255,8 +254,8 @@ test('onAnswer', async () => {
   signal1.connect(topic, signal2.id)
 
   await Promise.all([
-    pEvent(signal1, 'peer-connected'),
-    pEvent(signal2, 'peer-connected')
+    signal1.once('peer-connected'),
+    signal2.once('peer-connected')
   ])
 
   await signal1.close()
@@ -279,12 +278,12 @@ test('allow two connections of the same peer', async () => {
   const second = signal1.connect(topic, signal2.id)
 
   await Promise.all([
-    pEvent(signal1, 'peer-connected'),
-    pEvent(signal2, 'peer-connected')
+    signal1.once('peer-connected'),
+    signal2.once('peer-connected')
   ])
 
   await second.ready()
-  await pEvent(signal2, 'peer-connected')
+  await signal2.once('peer-connected')
 
   expect(signal1.peersConnected.length).toBe(2)
   expect(signal2.peersConnected.length).toBe(2)
@@ -299,7 +298,7 @@ test('media stream', async () => {
     if (peer.stream._remoteStreams.length > 0) {
       return peer.stream._remoteStreams[0]
     }
-    return pEvent(peer, 'stream')
+    return peer.once('stream')
   }
 
   const topic = crypto.randomBytes(32)
@@ -330,8 +329,8 @@ test('media stream', async () => {
     .subscribeMediaStream = true
 
   await Promise.all([
-    pEvent(signal1, 'peer-connecting'),
-    pEvent(signal2, 'peer-connecting')
+    signal1.once('peer-connecting'),
+    signal2.once('peer-connecting')
   ])
 
   const peer1 = signal1.peers[0]
@@ -360,8 +359,8 @@ test('connect without being in a swarm', async () => {
   signal1.connect(topic, signal2.id)
 
   await Promise.all([
-    pEvent(signal1, 'peer-connected'),
-    pEvent(signal2, 'peer-connected')
+    signal1.once('peer-connected'),
+    signal2.once('peer-connected')
   ])
 
   await signal1.close()
@@ -384,8 +383,8 @@ test('remoteConnect', async () => {
 
   await Promise.all([
     peer.ready(),
-    pEvent(signal1, 'peer-connected'),
-    pEvent(signal2, 'peer-connected')
+    signal1.once('peer-connected'),
+    signal2.once('peer-connected')
   ])
 
   await signal1.close()
@@ -393,7 +392,7 @@ test('remoteConnect', async () => {
   await server.close()
 })
 
-test.only('fail remoteConnect', async () => {
+test('fail remoteConnect', async () => {
   const topic = crypto.randomBytes(32)
   const server = new SocketSignalServerMap()
   const createSignal = signalFactory(server)
@@ -410,7 +409,7 @@ test.only('fail remoteConnect', async () => {
 
   const peer = signal1.remoteConnect(topic, signal2.id)
 
-  await Promise.all([
+  await Promise.race([
     expect(peer.ready()).rejects.toThrow('test'),
     peer.once('close')
   ])
