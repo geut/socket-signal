@@ -80,7 +80,7 @@ export class Peer extends NanoresourcePromise {
     if (this.connected) return
     if (this.destroyed) {
       if (this.error) throw this.error
-      throw new ERR_CONNECTION_CLOSED(this.sessionId)
+      throw new ERR_CONNECTION_CLOSED(this.sessionId.toString('hex'))
     }
 
     return this._waitForEvent('connect')
@@ -220,7 +220,7 @@ export class Peer extends NanoresourcePromise {
         throw data
       }
 
-      if (this.destroyed) throw new ERR_CONNECTION_CLOSED(this.sessionId)
+      if (this.destroyed) throw new ERR_CONNECTION_CLOSED(this.sessionId.toString('hex'))
 
       return data
     })
