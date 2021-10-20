@@ -214,7 +214,12 @@ export class Peer extends NanoresourcePromise {
     })
   }
 
-  _waitForEvent (eventName) {
+  async _waitForEvent (eventName) {
+    if (this.destroyed) {
+      if (this.error) throw this.error
+      throw new ERR_CONNECTION_CLOSED(this.sessionId.toString('hex'))
+    }
+
     return this.once([eventName, 'error', 'closed', 'simple-peer-closed']).then(data => {
       if (data instanceof Error) {
         throw data
