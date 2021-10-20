@@ -13,18 +13,6 @@ const kOffer = Symbol('peer.offer')
 const kAnswer = Symbol('peer.answer')
 const kSignalBatch = Symbol('peer.signalbatch')
 
-const waitForEvent = (emitter, event) => {
-  return emitter.once([event, 'error', 'closed']).then(data => {
-    if (data instanceof Error) {
-      throw data
-    }
-
-    if (emitter.closed) throw new ERR_CONNECTION_CLOSED(emitter.sessionId)
-
-    return data
-  })
-}
-
 export class Peer extends NanoresourcePromise {
   constructor (opts = {}) {
     super()
@@ -66,7 +54,7 @@ export class Peer extends NanoresourcePromise {
   }
 
   get destroyed () {
-    return this.stream.destroyed
+    return this.stream.destroyed || this.closed
   }
 
   get metadata () {
@@ -95,7 +83,7 @@ export class Peer extends NanoresourcePromise {
       throw new ERR_CONNECTION_CLOSED(this.sessionId)
     }
 
-    return waitForEvent(this, 'connect')
+    return this._waitForEvent('connect')
   }
 
   async addMediaStream (mediaStream) {
@@ -109,11 +97,19 @@ export class Peer extends NanoresourcePromise {
   }
 
   waitForMediaStream () {
-    return waitForEvent(this, 'stream')
+    return this._waitForEvent('stream')
   }
 
   destroy (err) {
     this.stream.destroy(err)
+  }
+
+  waitForClose () {
+    return this.once(['error', 'closed', 'simple-peer-closed']).then(data => {
+      if (data instanceof Error) {
+        throw data
+      }
+    })
   }
 
   async _open () {
@@ -183,6 +179,7 @@ export class Peer extends NanoresourcePromise {
       this.stream.removeListener('error', onError)
       this.stream.removeListener('connect', onConnect)
       this.close().catch(() => {})
+      this.emit('simple-peer-closed')
     }
 
     this.stream.on('stream', onStream)
@@ -212,8 +209,20 @@ export class Peer extends NanoresourcePromise {
     })
   }
 
+  _waitForEvent (eventName) {
+    return this.once([eventName, 'error', 'closed', 'simple-peer-closed']).then(data => {
+      if (data instanceof Error) {
+        throw data
+      }
+
+      if (this.destroyed) throw new ERR_CONNECTION_CLOSED(this.sessionId)
+
+      return data
+    })
+  }
+
   async _waitForAnswer () {
     if (this[kAnswer]) return this[kAnswer]
-    return waitForEvent(this, 'answer-updated')
+    return this._waitForEvent('answer-updated')
   }
 }
