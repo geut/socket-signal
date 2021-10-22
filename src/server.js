@@ -73,17 +73,20 @@ export class SocketSignalServer extends NanoresourcePromise {
 
     await rpc.open()
 
+    let error
     try {
       log('connection-added', rpc.id.toString('hex'))
       await this._onConnect(rpc)
       this.connections.add(rpc)
     } catch (err) {
-      rpc.closed()
-        .then(deleteConnection)
-        .catch(deleteConnection)
-        .finally(() => {
-          this.emit('connection-error', err, rpc)
-        })
+      error = err
+    }
+
+    if (error) {
+      await rpc.close().catch(() => {})
+      await deleteConnection().catch(() => {})
+      this.emit('connection-error', error, rpc)
+      throw error
     }
 
     return rpc
