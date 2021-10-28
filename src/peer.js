@@ -105,16 +105,8 @@ export class Peer extends NanoresourcePromise {
   }
 
   async waitForClose () {
-    if (this.destroyed) {
-      if (this.error) throw this.error
-      return
-    }
-
-    return this.once(['error', 'closed', 'simple-peer-closed']).then(data => {
-      if (data instanceof Error) {
-        throw data
-      }
-    })
+    if (this.destroyed) return
+    return this.once(['error', 'closed', 'simple-peer-closed'])
   }
 
   async _open () {
