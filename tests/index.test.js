@@ -1,9 +1,9 @@
-import crypto from 'crypto'
 import through from 'through2'
 import duplexify from 'duplexify'
 import wrtc from 'wrtc'
 import { jest } from '@jest/globals'
 
+import randomBytes from '../src/random-bytes.js'
 import { SocketSignalClient, Peer, SocketSignalServerMap } from '../src/index.js'
 
 jest.setTimeout(60 * 1000)
@@ -42,7 +42,7 @@ test('basic connection', async () => {
 
   expect.assertions((MAX_SIGNALS * 3) + 13)
 
-  const topic = crypto.randomBytes(32)
+  const topic = randomBytes(32)
   const server = new SocketSignalServerMap()
   const createSignal = signalFactory(server)
 
@@ -133,7 +133,7 @@ test('basic connection', async () => {
 test('rejects connection', async () => {
   expect.assertions(10)
 
-  const topic = crypto.randomBytes(32)
+  const topic = randomBytes(32)
   const server = new SocketSignalServerMap()
   const createSignal = signalFactory(server)
 
@@ -167,7 +167,7 @@ test('rejects connection', async () => {
 })
 
 test('metadata onIncomingPeer', async () => {
-  const topic = crypto.randomBytes(32)
+  const topic = randomBytes(32)
   const server = new SocketSignalServerMap()
   const createSignal = signalFactory(server)
 
@@ -199,7 +199,7 @@ test('metadata onIncomingPeer', async () => {
 test('metadata onOffer', async () => {
   expect.assertions(4)
 
-  const topic = crypto.randomBytes(32)
+  const topic = randomBytes(32)
   const server = new SocketSignalServerMap()
   const createSignal = signalFactory(server)
 
@@ -236,7 +236,7 @@ test('metadata onOffer', async () => {
 test('onAnswer', async () => {
   expect.assertions(2)
 
-  const topic = crypto.randomBytes(32)
+  const topic = randomBytes(32)
   const server = new SocketSignalServerMap()
   const createSignal = signalFactory(server)
 
@@ -264,7 +264,7 @@ test('onAnswer', async () => {
 })
 
 test('allow two connections of the same peer', async () => {
-  const topic = crypto.randomBytes(32)
+  const topic = randomBytes(32)
   const server = new SocketSignalServerMap()
   const createSignal = signalFactory(server)
 
@@ -301,7 +301,7 @@ test('media stream', async () => {
     return peer.once('stream')
   }
 
-  const topic = crypto.randomBytes(32)
+  const topic = randomBytes(32)
   const server = new SocketSignalServerMap()
   const createSignal = signalFactory(server)
 
@@ -347,7 +347,7 @@ test('media stream', async () => {
 })
 
 test('connect without being in a swarm', async () => {
-  const topic = crypto.randomBytes(32)
+  const topic = randomBytes(32)
   const server = new SocketSignalServerMap()
   const createSignal = signalFactory(server)
 
@@ -369,7 +369,7 @@ test('connect without being in a swarm', async () => {
 })
 
 test('remoteConnect', async () => {
-  const topic = crypto.randomBytes(32)
+  const topic = randomBytes(32)
   const server = new SocketSignalServerMap()
   const createSignal = signalFactory(server)
 
@@ -393,7 +393,7 @@ test('remoteConnect', async () => {
 })
 
 test('fail remoteConnect', async () => {
-  const topic = crypto.randomBytes(32)
+  const topic = randomBytes(32)
   const server = new SocketSignalServerMap()
   const createSignal = signalFactory(server)
 

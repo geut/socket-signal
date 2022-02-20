@@ -14,10 +14,11 @@
 */
 
 import debug from 'debug'
-import crypto from 'crypto'
 import { NanomessageRPC, useSocket } from 'nanomessage-rpc'
 
 import { NanoresourcePromise } from 'nanoresource-promise/emitter'
+
+import randomBytes from './random-bytes.js'
 
 const log = debug('socketsignal:server')
 
@@ -55,7 +56,7 @@ export class SocketSignalServer extends NanoresourcePromise {
 
     const rpc = new NanomessageRPC({ timeout: this._requestTimeout, ...this._rpcOpts, ...useSocket(socket) })
     rpc.socket = socket
-    rpc.id = rpc.id || crypto.randomBytes(32)
+    rpc.id = rpc.id || randomBytes(32)
 
     this[kDefineActions](rpc)
     this[kDefineEvents](rpc)

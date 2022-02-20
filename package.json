@@ -4,7 +4,12 @@
   "description": "Signal abstraction to create WebRTC connections through sockets.",
   "type": "module",
   "exports": {
-    ".": "./src/index.js"
+    ".": "./src/index.js",
+    "./client": "./src/client.js",
+    "./server": "./src/server.js",
+    "./server-map": "./src/server-map.js",
+    "./errors": "./src/errors.js",
+    "./peer": "./src/peer.js"
   },
   "files": [
     "src"
@@ -12,6 +17,9 @@
   "browserslist": [
     "> 5%"
   ],
+  "browser": {
+    "crypto": false
+  },
   "scripts": {
     "start": "node index.js",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --verbose --passWithNoTests --forceExit",

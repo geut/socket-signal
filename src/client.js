@@ -1,11 +1,10 @@
-import crypto from 'crypto'
-
 import assert from 'nanocustomassert'
 import { promise as fastq } from 'fastq'
 import { NanomessageRPC, useSocket } from 'nanomessage-rpc'
 import { NanoresourcePromise } from 'nanoresource-promise/emittery'
 
 import { Peer } from './peer.js'
+import randomBytes from './random-bytes.js'
 
 const kOutQueue = Symbol('socketsignal.outqueue')
 const kInQueue = Symbol('socketsignal.inqueue')
@@ -38,7 +37,7 @@ export class SocketSignalClient extends NanoresourcePromise {
     super()
 
     const {
-      id = crypto.randomBytes(32),
+      id = randomBytes(32),
       requestTimeout = 15 * 1000,
       concurrency = 1,
       simplePeer = {},
@@ -213,7 +212,7 @@ export class SocketSignalClient extends NanoresourcePromise {
 
     const { metadata, simplePeer = {} } = opts
 
-    const peer = this[kCreatePeer]({ initiator: true, sessionId: crypto.randomBytes(32), id: peerId, topic, metadata, simplePeer })
+    const peer = this[kCreatePeer]({ initiator: true, sessionId: randomBytes(32), id: peerId, topic, metadata, simplePeer })
 
     this[kAddPeer](peer)
 
@@ -232,7 +231,7 @@ export class SocketSignalClient extends NanoresourcePromise {
 
     const { metadata, simplePeer = {} } = opts
 
-    const peer = this[kCreatePeer]({ initiator: false, sessionId: crypto.randomBytes(32), id: peerId, topic, metadata, simplePeer })
+    const peer = this[kCreatePeer]({ initiator: false, sessionId: randomBytes(32), id: peerId, topic, metadata, simplePeer })
 
     const unsubscribe = peer.on('open', async () => {
       unsubscribe()
